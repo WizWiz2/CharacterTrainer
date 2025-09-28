@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Runtime artifacts
+backend/data/jobs/*
+!backend/data/jobs/.gitkeep
+backend/artifacts/ed_lora/*.safetensors
+backend/artifacts/ed_lora/*.txt

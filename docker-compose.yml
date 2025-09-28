@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      args:
+        KOHYA_IMAGE: ${KOHYA_IMAGE:-ghcr.io/kohya-ss/sd-scripts:latest}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/config.yaml:/app/backend/config.yaml:ro
+      - ./backend/artifacts:/app/backend/artifacts
+      - ./backend/data:/app/backend/data
+      - ./backend/models:/srv/models
+    environment:
+      - PYTHONPATH=/app/backend
+      - KOHYA_ROOT=/opt/kohya_ss
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    ports:
+      - "5173:4173"
+    environment:
+      - VITE_API_URL=http://backend:8000
+    depends_on:
+      - backend
