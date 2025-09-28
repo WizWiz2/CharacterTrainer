@@ -1,0 +1,19 @@
+ed_lora_dir: "backend/artifacts/ed_lora"
+base_model:
+  use: "ds8"
+  ds8: "backend/models/dreamshaper_8.safetensors"
+  sd15: "backend/models/v1-5-pruned-emaonly.safetensors"
+trigger_token: "svtchar"
+local_docker: true
+train:
+  resolution: 512
+  steps: 2500
+  network_dim: 32
+  unet_only: true
+  save_every: 500
+kohya:
+  accelerate_bin: "accelerate"
+  script_path: "${KOHYA_ROOT}/train_network.py"
+  workspace: "${KOHYA_ROOT}"
+  output_subdir: "output"
+  network_module: "lycoris.kohya"
