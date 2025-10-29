@@ -1,8 +1,8 @@
-ed_lora_dir: "backend/artifacts/ed_lora"
+ed_lora_dir: "artifacts/ed_lora"
 base_model:
   use: "ds8"
-  ds8: "backend/models/dreamshaper_8.safetensors"
-  sd15: "backend/models/v1-5-pruned-emaonly.safetensors"
+  ds8: "/srv/models/dreamshaper_8.safetensors"
+  sd15: "/srv/models/v1-5-pruned-emaonly.safetensors"
 trigger_token: "svtchar"
 local_docker: true
 train:
