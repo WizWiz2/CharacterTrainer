@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   apiUrl,
@@ -42,7 +42,7 @@ interface StatusResponse {
 }
 
 export default function App(): JSX.Element {
-  const [name, setName] = useState("");
+  const [name, setName] = useState("character");
   const [trigger, setTrigger] = useState(DEFAULT_TRIGGER_TOKEN);
   const [baseModel, setBaseModel] = useState(DEFAULT_BASE_MODEL);
   const [resolution, setResolution] = useState(DEFAULT_RESOLUTION);
@@ -60,6 +60,10 @@ export default function App(): JSX.Element {
   const [logs, setLogs] = useState<string[]>([]);
   const [artifactPath, setArtifactPath] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const logsEndRef = useRef<HTMLDivElement>(null);
+  const totalEpochsRef = useRef<number | null>(null);
+  const [progress, setProgress] = useState<number>(0);
+
 
   const [envChecked, setEnvChecked] = useState(false);
   const [envInfo, setEnvInfo] = useState<EnvInfo>({ ok: false });
@@ -86,7 +90,7 @@ export default function App(): JSX.Element {
         setErrorMsg(data.message || ENV_NOT_READY_MESSAGE);
       } else {
         setState("idle");
-        pushLog(`${ENV_LOG_PREFIX}${data.ed_lora_dir ?? "не задан"}`);
+        pushLog(`${ENV_LOG_PREFIX}${data.ed_lora_dir ?? "Ð½Ðµ Ð·Ð°Ð´Ð°Ð½"}`);
         if (data.message) pushLog(data.message);
       }
     } catch (error) {
@@ -95,9 +99,12 @@ export default function App(): JSX.Element {
     }
   }
 
-  function pushLog(line: string): void {
-    setLogs((prev) => [...prev, line]);
-  }
+  function pushLog(line: string): void { setLogs((prev)=>[...prev, line]); }
+
+  useEffect(()=>{ const el = document.getElementById("logs"); if(el){ el.scrollTop = el.scrollHeight; }
+    for(const l of logs){ const m = l.match(/num epochs .*?:\s*(\d+)/i); if(m){ totalEpochsRef.current = Number(m[1]); } }
+    const ep = logs.filter((l)=> l.toLowerCase().includes("epoch is incremented")).length; const total = totalEpochsRef.current ?? 0; if(total>0){ setProgress(Math.max(0, Math.min(1, ep/total))); }
+  }, [logs]);
 
   async function handleStart(): Promise<void> {
     setLogs([]);
@@ -173,22 +180,22 @@ export default function App(): JSX.Element {
     void poll();
   }
 
-  const canStart = useMemo(() => state === "idle" || state === "error", [state]);
+            <h1 className="text-2xl font-semibold tracking-tight">Character LoRA One-Click</h1>
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 p-6">
       <div className="max-w-6xl mx-auto">
         <header className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">Character LoRA One‑Click</h1>
-            <span className="text-xs px-2 py-1 rounded bg-neutral-800 border border-neutral-700">UI Prototype</span>
+            <h1 className="text-2xl font-semibold tracking-tight">Character LoRA Oneâ€‘Click</h1>
+            
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={checkEnv}
               className="px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-emerald-500 text-xs"
             >
-              Проверить окружение
+              ÐŸÑ€Ð¾Ð²ÐµÑ€Ð¸Ñ‚ÑŒ Ð¾ÐºÑ€ÑƒÐ¶ÐµÐ½Ð¸Ðµ
             </button>
             <span
               className={`text-xs px-2 py-0.5 rounded border ${
@@ -197,16 +204,16 @@ export default function App(): JSX.Element {
                   : "bg-neutral-800 border-neutral-700"
               }`}
             >
-              {envChecked ? (envInfo.ok ? "OK" : "NEEDS SETUP") : "—"}
+              {envChecked ? (envInfo.ok ? "OK" : "NEEDS SETUP") : "â€”"}
             </span>
           </div>
         </header>
 
         <div className="grid lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 bg-neutral-900/70 border border-neutral-800 rounded-2xl p-4 shadow-sm">
-            <h2 className="text-lg font-medium mb-3">Данные персонажа</h2>
+            <h2 className="text-lg font-medium mb-3">Ð”Ð°Ð½Ð½Ñ‹Ðµ Ð¿ÐµÑ€ÑÐ¾Ð½Ð°Ð¶Ð°</h2>
             <div className="grid sm:grid-cols-2 gap-3">
-              <Field label="Имя персонажа / ID">
+              <Field label="Ð˜Ð¼Ñ Ð¿ÐµÑ€ÑÐ¾Ð½Ð°Ð¶Ð° / ID">
                 <input
                   value={name}
                   onChange={(event) => setName(event.target.value)}
@@ -221,7 +228,7 @@ export default function App(): JSX.Element {
                   className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 w-full"
                 />
               </Field>
-              <Field label="Базовая модель">
+              <Field label="Ð‘Ð°Ð·Ð¾Ð²Ð°Ñ Ð¼Ð¾Ð´ÐµÐ»ÑŒ">
                 <select
                   value={baseModel}
                   onChange={(event) => setBaseModel(event.target.value)}
@@ -257,9 +264,9 @@ export default function App(): JSX.Element {
               </Field>
               <div className="flex items-center gap-2">
                 <input type="checkbox" checked={unetOnly} onChange={(event) => setUnetOnly(event.target.checked)} />
-                <span className="text-sm">UNet only (рекомендуется на старте)</span>
+                <span className="text-sm">UNet only (Ñ€ÐµÐºÐ¾Ð¼ÐµÐ½Ð´ÑƒÐµÑ‚ÑÑ Ð½Ð° ÑÑ‚Ð°Ñ€Ñ‚Ðµ)</span>
               </div>
-              <Field label="Реком. вес в ED">
+              <Field label="Ð ÐµÐºÐ¾Ð¼. Ð²ÐµÑ Ð² ED">
                 <input
                   value={weight}
                   onChange={(event) => setWeight(event.target.value)}
@@ -270,12 +277,12 @@ export default function App(): JSX.Element {
 
             <div className="mt-4">
               <div className="border border-dashed border-neutral-700 rounded-2xl p-4 flex flex-col items-center justify-center gap-2">
-                <p className="text-sm text-neutral-300">Загрузите 8–25 изображений (JPG/PNG/WEBP)</p>
+                <p className="text-sm text-neutral-300">Ð—Ð°Ð³Ñ€ÑƒÐ·Ð¸Ñ‚Ðµ 8â€“25 Ð¸Ð·Ð¾Ð±Ñ€Ð°Ð¶ÐµÐ½Ð¸Ð¹ (JPG/PNG/WEBP)</p>
                 <button
                   onClick={() => inputRef.current?.click()}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition"
                 >
-                  Выбрать файлы
+                  Ð’Ñ‹Ð±Ñ€Ð°Ñ‚ÑŒ Ñ„Ð°Ð¹Ð»Ñ‹
                 </button>
                 <input
                   ref={inputRef}
@@ -285,7 +292,7 @@ export default function App(): JSX.Element {
                   className="hidden"
                   onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
                 />
-                {files.length > 0 && <p className="text-xs text-neutral-400">Выбрано: {files.length}</p>}
+                {files.length > 0 && <p className="text-xs text-neutral-400">Ð’Ñ‹Ð±Ñ€Ð°Ð½Ð¾: {files.length}</p>}
               </div>
               {thumbs.length > 0 && (
                 <div className="mt-3 grid grid-cols-6 gap-2">
@@ -302,7 +309,7 @@ export default function App(): JSX.Element {
                 disabled={!canStart}
                 className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50"
               >
-                ▶︎ Запустить One‑Click
+                â–¶ï¸Ž Ð—Ð°Ð¿ÑƒÑÑ‚Ð¸Ñ‚ÑŒ
               </button>
               <button
                 onClick={() => {
@@ -314,7 +321,7 @@ export default function App(): JSX.Element {
                 }}
                 className="px-4 py-2 rounded-xl bg-neutral-800 border border-neutral-700"
               >
-                Сброс
+                Ð¡Ð±Ñ€Ð¾Ñ
               </button>
             </div>
 
@@ -322,32 +329,40 @@ export default function App(): JSX.Element {
           </div>
 
           <div className="bg-neutral-900/70 border border-neutral-800 rounded-2xl p-4 shadow-sm">
-            <h2 className="text-lg font-medium mb-3">Статус</h2>
+            <h2 className="text-lg font-medium mb-3">Ð¡Ñ‚Ð°Ñ‚ÑƒÑ</h2>
             <div className="space-y-2 text-sm">
-              <Row k="Состояние" v={<Badge>{state.toUpperCase()}</Badge>} />
-              <Row k="Job ID" v={jobId || "—"} />
+              <Row k="Ð¡Ð¾ÑÑ‚Ð¾ÑÐ½Ð¸Ðµ" v={<Badge>{state.toUpperCase()}</Badge>} />
+              <Row k="Job ID" v={jobId || "â€”"} />
               <div>
                 <div className="text-neutral-300 mb-1">Логи</div>
-                <div className="h-48 overflow-auto bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs font-mono whitespace-pre-wrap">
-                  {logs.length ? logs.join("\n") : "—"}
+                <div className="h-80 overflow-auto bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs font-mono whitespace-pre-wrap" id="logs">
+                  {logs.map((l, i) => (
+                    <div key={i}>{l}</div>
+                  ))}
+                  <div id="logs-end" />
+                </div>
+                <div className="mt-2">
+                  <div className="text-xs text-neutral-400 mb-1">Прогресс</div>
+                  <div className="h-2 bg-neutral-800 rounded"><div className="h-2 bg-emerald-500 rounded" style={{width: `${Math.round(progress*100)}%`}}/></div>
+                  <div className="text-right text-xs text-neutral-500 mt-1">{Math.round(progress*100)}%</div>
                 </div>
               </div>
               <Row
-                k="Артефакт"
-                v={<span className="break-all text-neutral-400 text-xs">{artifactPath || "—"}</span>}
+                k="ÐÑ€Ñ‚ÐµÑ„Ð°ÐºÑ‚"
+                v={<span className="break-all text-neutral-400 text-xs">{artifactPath || "â€”"}</span>}
               />
               <div className="mt-3 text-xs text-neutral-400">
-                Подсказки для ED: база <b>dreamshaper_8</b>, LoRA‑вес <b>{weight}</b>, Sampler <b>DPM++ 2M Karras</b>, Steps <b>28–40</b>, CFG <b>4–6</b>.
-                Для поз — ControlNet (OpenPose/Depth).
+                ÐŸÐ¾Ð´ÑÐºÐ°Ð·ÐºÐ¸ Ð´Ð»Ñ ED: Ð±Ð°Ð·Ð° <b>dreamshaper_8</b>, LoRAâ€‘Ð²ÐµÑ <b>{weight}</b>, Sampler <b>DPM++ 2M Karras</b>, Steps <b>28â€“40</b>, CFG <b>4â€“6</b>.
+                Ð”Ð»Ñ Ð¿Ð¾Ð· â€” ControlNet (OpenPose/Depth).
               </div>
             </div>
           </div>
         </div>
-
         <div className="mt-6 flex flex-wrap gap-2">
-          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm">Открыть папку LoRA</button>
-          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm">Экспорт паспорта персонажа</button>
-          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm">Генерировать 3 тест‑сцены</button>
+
+          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm" onClick={() => window.open('/artifacts','_blank')}>Открыть папку LoRA</button>
+          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm" onClick={() => { const payload = { name, trigger, base_model: baseModel, resolution, network_dim: networkDim, steps, unet_only: unetOnly, recommended_weight: weight, artifact: artifactPath || null, generated_at: new Date().toISOString() }; const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${(name || 'character').replace(/\s+/g, '_')}_passport.json`; a.click(); URL.revokeObjectURL(url); }}>Экспорт паспорта персонажа</button>
+          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm" onClick={() => { const prompts = [`${trigger}, ${name}, portrait, studio lighting, detailed face`, `${trigger}, ${name}, close-up, soft light, bokeh background`, `${trigger}, ${name}, half-body, cinematic light, 85mm`]; navigator.clipboard.writeText(prompts.map((p,i)=>`Scene ${i+1}: ${p}`).join('\n')).catch(()=>{}); alert('3 промпта скопированы в буфер обмена'); }}>Генерировать 3 тест‑сцены</button>
         </div>
       </div>
     </div>
@@ -375,3 +390,10 @@ function Row({ k, v }: { k: string; v: React.ReactNode }): JSX.Element {
 function Badge({ children }: { children: React.ReactNode }): JSX.Element {
   return <span className="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 text-xs">{children}</span>;
 }
+
+
+
+
+
+
+

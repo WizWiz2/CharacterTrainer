@@ -21,3 +21,5 @@ backend/data/jobs/*
 !backend/data/jobs/.gitkeep
 backend/artifacts/ed_lora/*.safetensors
 backend/artifacts/ed_lora/*.txt
+.env
+docker-compose.override.yml

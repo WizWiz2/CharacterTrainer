@@ -7,7 +7,9 @@ ARG VITE_API_URL="http://backend:8000"
 ENV VITE_API_URL=${VITE_API_URL}
 
 COPY frontend/package*.json ./
-RUN npm install
+# Cache npm files between builds
+RUN --mount=type=cache,target=/root/.npm \
+    sh -lc "if [ -f package-lock.json ]; then npm ci; else npm install; fi"
 
 COPY frontend ./
 RUN npm run build

@@ -1,12 +1,11 @@
-version: "3.9"
-
 services:
   backend:
     build:
       context: .
-      dockerfile: docker/backend.Dockerfile
+      dockerfile: ${BACKEND_DOCKERFILE:-docker/backend.gpu.Dockerfile}
       args:
-        KOHYA_IMAGE: ${KOHYA_IMAGE:-ghcr.io/kohya-ss/sd-scripts:latest}
+        BASE_IMAGE: ${BASE_IMAGE:-python:3.10-slim}
+    gpus: all
     ports:
       - "8000:8000"
     volumes:
@@ -14,9 +13,18 @@ services:
       - ./backend/artifacts:/app/backend/artifacts
       - ./backend/data:/app/backend/data
       - ./backend/models:/srv/models
+      - "${HOST_MODELS_DIR:-./backend/models/external}:/srv/models/external:ro"
+      - ./kohya_ss:/opt/kohya_ss:ro
+      - hf_cache:/root/.cache/huggingface
     environment:
       - PYTHONPATH=/app/backend
       - KOHYA_ROOT=/opt/kohya_ss
+      - HF_HOME=/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD-SHELL", "python - <<'PY'\nimport sys, json, urllib.request\ntry:\n    req = urllib.request.Request('http://localhost:8000/config/test', data=b'{}', headers={'Content-Type':'application/json'}, method='POST')\n    with urllib.request.urlopen(req, timeout=3) as r:\n        sys.exit(0 if r.status==200 else 1)\nexcept Exception:\n    sys.exit(1)\nPY"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   frontend:
     build:
@@ -30,3 +38,11 @@ services:
       - VITE_API_URL=http://localhost:8000
     depends_on:
       - backend
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4173').on('response', r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\"" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  hf_cache:

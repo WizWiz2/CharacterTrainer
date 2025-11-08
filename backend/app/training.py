@@ -4,6 +4,9 @@ import asyncio
 import shutil
 from pathlib import Path
 from typing import Dict, List, Tuple
+import os
+
+import torch
 
 from .config import AppConfig
 from .constants import (
@@ -76,23 +79,51 @@ def _build_training_command(
     steps = int(job.params.get("steps", config.train.steps))
     network_dim = int(job.params.get("network_dim", config.train.network_dim))
     unet_only = _bool_param(job.params.get("unet_only", config.train.unet_only), config.train.unet_only)
+    # Adjust mixed precision depending on device availability
+    mixed_precision = config.train.mixed_precision
+    use_cuda = torch.cuda.is_available()
+    if not use_cuda:
+        mixed_precision = "no"
+
+    # Ensure Accelerate config matches desired device
+    try:
+        accel_dir = Path("/root/.cache/huggingface/accelerate")
+        accel_dir.mkdir(parents=True, exist_ok=True)
+        cfg = (
+            "compute_environment: LOCAL_MACHINE\n"
+            "distributed_type: NO\n"
+            "downcast_bf16: 'no'\n"
+            "dynamo_backend: 'no'\n"
+            "machine_rank: 0\n"
+            "main_process_ip: 127.0.0.1\n"
+            "main_process_port: 29500\n"
+            f"mixed_precision: {mixed_precision}\n"
+            "num_machines: 1\n"
+            "num_processes: 1\n"
+            "rdzv_backend: static\n"
+            "same_network: true\n"
+            "tpu_name: null\n"
+            f"use_cpu: {'false' if use_cuda else 'true'}\n"
+        )
+        (accel_dir / "default_config.yaml").write_text(cfg, encoding="utf-8")
+    except Exception:
+        pass
 
     artifact_stem = config.kohya.artifact_template.format(name=name, base=base_key)
     expected_artifact = output_dir / f"{artifact_stem}{ARTIFACT_SUFFIX}"
 
     images_dir = dataset_dir / DATASET_IMAGES_SUBDIR
-    captions_dir = dataset_dir / DATASET_CAPTIONS_SUBDIR
 
     command: List[str] = [
         config.kohya.accelerate_bin,
         "launch",
+        # If CUDA present, hint to use GPU id 0
+        *(["--gpu_ids", "0"] if use_cuda else []),
         str(config.kohya.script_path),
         "--pretrained_model_name_or_path",
         str(base_path),
         "--train_data_dir",
         str(images_dir),
-        "--caption_metadata_dir",
-        str(captions_dir),
         "--resolution",
         f"{resolution},{resolution}",
         "--network_module",
@@ -113,16 +144,18 @@ def _build_training_command(
         str(config.train.train_batch_size),
         "--noise_offset",
         str(config.train.noise_offset),
-        "--caption_dropout",
+        "--caption_dropout_rate",
         str(config.train.caption_dropout),
         "--min_snr_gamma",
         str(config.train.min_snr_gamma),
         "--mixed_precision",
-        config.train.mixed_precision,
+        mixed_precision,
+        "--caption_extension",
+        ".txt",
     ]
 
     if unet_only:
-        command.append("--train_unet_only")
+        command.append("--network_train_unet_only")
     elif config.train.lr_text > 0:
         command.extend(["--text_encoder_lr", str(config.train.lr_text)])
 
@@ -147,9 +180,19 @@ async def run_pipeline(job: JobRecord, raw_dir: Path, config: AppConfig) -> None
         if not workspace.exists():
             raise FileNotFoundError(f"Рабочая директория kohya_ss не найдена: {workspace}")
 
+        # Propagate env with CUDA_VISIBLE_DEVICES if GPU available
+        env = os.environ.copy()
+        use_cuda_runtime = False
+        try:
+            use_cuda_runtime = bool(torch.cuda.is_available())
+        except Exception:
+            use_cuda_runtime = False
+        if use_cuda_runtime:
+            env["CUDA_VISIBLE_DEVICES"] = env.get("CUDA_VISIBLE_DEVICES", "0") or "0"
         process = await asyncio.create_subprocess_exec(
             *command,
             cwd=str(workspace),
+            env=env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )

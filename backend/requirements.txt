@@ -4,3 +4,19 @@ python-multipart==0.0.9
 pillow==10.2.0
 pyyaml==6.0.1
 accelerate==0.27.2
+# Pin NumPy to 1.x for binary compatibility with cv2 wheels
+numpy==1.26.4
+# Training deps for kohya_ss
+toml==0.10.2
+lycoris-lora==3.3.0
+diffusers==0.35.2
+transformers==4.57.1
+safetensors==0.6.2
+einops==0.8.1
+torchvision==0.21.0
+ftfy==6.1.1
+opencv-python==4.8.1.78
+voluptuous==0.13.1
+imagesize==1.4.1
+rich==13.7.0
+tensorboard==2.18.0
