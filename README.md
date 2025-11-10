@@ -93,6 +93,10 @@ The script keeps `.env` in sync with `BASE_IMAGE`, rebuilds the base image when 
 - docker-compose adds a `mlflow` service with a local SQLite backend and a `mlruns` volume for artifacts.
 - To disable MLflow, remove `MLFLOW_TRACKING_URI` from the backend service environment.
 
+## ✉️ Contact & Feedback
+If you have questions, suggestions, or just want to say hi — feel free to reach out:  
+📧 **[wizwiz0107@gmail.com](mailto:wizwiz0107@gmail.com)**
+
 ❤️ Support the Project
 
 If this tool saved you time, you can support development here:
