@@ -85,3 +85,10 @@ The script keeps `.env` in sync with `BASE_IMAGE`, rebuilds the base image when 
 - Backend logs: `docker compose logs -f backend`
 - Frontend logs: `docker compose logs -f frontend`
 - API test: `curl -s -X POST http://localhost:8000/config/test -H "Content-Type: application/json" -d '{}'`
+
+## MLflow (experiment tracking)
+
+- MLflow UI: http://localhost:5000
+- The backend logs basic parameters for each training run and uploads artifacts (.safetensors and combined log). If metrics like `loss` appear in training logs, they are parsed and logged as MLflow metrics.
+- docker-compose adds a `mlflow` service with a local SQLite backend and a `mlruns` volume for artifacts.
+- To disable MLflow, remove `MLFLOW_TRACKING_URI` from the backend service environment.

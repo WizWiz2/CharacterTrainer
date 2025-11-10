@@ -24,14 +24,20 @@ from .dataset import prepare_dataset
 from .job_manager import JobState, JobRecord, job_manager
 
 
-async def _stream_process_output(process: asyncio.subprocess.Process, job_id: str) -> None:
+async def _stream_process_output(process: asyncio.subprocess.Process, job_id: str, on_line: callable | None = None) -> None:
     if not process.stdout:
         return
     while True:
         line = await process.stdout.readline()
         if not line:
             break
-        job_manager.append_log(job_id, line.decode("utf-8", errors="ignore").rstrip())
+        text = line.decode("utf-8", errors="ignore").rstrip()
+        job_manager.append_log(job_id, text)
+        if on_line:
+            try:
+                on_line(text)
+            except Exception:
+                pass
 
 
 def _bool_param(value: str | bool, default: bool) -> bool:
@@ -164,6 +170,14 @@ def _build_training_command(
 
 async def run_pipeline(job: JobRecord, raw_dir: Path, config: AppConfig) -> None:
     try:
+        # Try optional MLflow import
+        mlflow = None
+        try:  # noqa: SIM105
+            import mlflow as _mlflow  # type: ignore
+            mlflow = _mlflow
+        except Exception:
+            mlflow = None
+
         job_manager.set_state(job.job_id, JobState.PREPPING)
         dataset_dir = _prepare_dataset(job, raw_dir, config)
 
@@ -189,6 +203,9 @@ async def run_pipeline(job: JobRecord, raw_dir: Path, config: AppConfig) -> None
             use_cuda_runtime = False
         if use_cuda_runtime:
             env["CUDA_VISIBLE_DEVICES"] = env.get("CUDA_VISIBLE_DEVICES", "0") or "0"
+        # Collector for process logs (for MLflow artifact)
+        collected: List[str] = []
+
         process = await asyncio.create_subprocess_exec(
             *command,
             cwd=str(workspace),
@@ -196,7 +213,46 @@ async def run_pipeline(job: JobRecord, raw_dir: Path, config: AppConfig) -> None
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )
-        await _stream_process_output(process, job.job_id)
+        # Optional line hook: parse simple progress or loss if present
+        def _on_line(s: str) -> None:
+            collected.append(s)
+            if mlflow is None:
+                return
+            # Very conservative parsing: log epoch increments as metric 'epoch_progress'
+            if "epoch is incremented" in s.lower():
+                # Count occurrences as progress steps
+                mlflow.log_metric("epoch_progress", 1, step=len([x for x in collected if "epoch is incremented" in x.lower()]))
+            # Optionally parse 'loss' tokens like 'loss: 0.1234'
+            if "loss" in s.lower():
+                try:
+                    import re
+                    m = re.search(r"loss\s*[:=]\s*([0-9]*\.?[0-9]+)", s, flags=re.IGNORECASE)
+                    if m:
+                        mlflow.log_metric("loss", float(m.group(1)), step=len(collected))
+                except Exception:
+                    pass
+
+        # If MLflow available, start a run
+        run_ctx = None
+        if mlflow is not None:
+            try:
+                run_ctx = mlflow.start_run(run_name=job.job_id)
+                # Log parameters
+                mlflow.log_params({
+                    "job_id": job.job_id,
+                    "name": job.params.get("name"),
+                    "trigger": job.params.get("trigger"),
+                    "base_model": job.params.get("base_model", config.base_model.use),
+                    "resolution": job.params.get("resolution", config.train.resolution),
+                    "network_dim": job.params.get("network_dim", config.train.network_dim),
+                    "steps": job.params.get("steps", config.train.steps),
+                    "unet_only": job.params.get("unet_only", config.train.unet_only),
+                    "mixed_precision": config.train.mixed_precision,
+                })
+            except Exception:
+                run_ctx = None
+
+        await _stream_process_output(process, job.job_id, on_line=_on_line)
         return_code = await process.wait()
         if return_code != 0:
             raise RuntimeError(f"kohya_ss exited with code {return_code}")
@@ -218,9 +274,33 @@ async def run_pipeline(job: JobRecord, raw_dir: Path, config: AppConfig) -> None
         job_manager.set_artifact(job.job_id, str(destination_path))
         job_manager.append_log(job.job_id, LOG_PIPELINE_DONE)
         job_manager.set_state(job.job_id, JobState.DONE)
+
+        # Log to MLflow: artifact + combined log
+        if mlflow is not None:
+            try:
+                # Write combined log
+                log_path = (raw_dir.parent / f"{artifact_stem}.log")
+                try:
+                    log_path.write_text("\n".join(collected), encoding="utf-8")
+                except Exception:
+                    pass
+                # Log artifacts
+                if destination_path.exists():
+                    mlflow.log_artifact(str(destination_path))
+                if log_path.exists():
+                    mlflow.log_artifact(str(log_path))
+                mlflow.set_tag("status", "success")
+            except Exception:
+                pass
     except Exception as exc:  # pragma: no cover - defensive
         job_manager.append_log(job.job_id, LOG_PIPELINE_ERROR.format(error=exc))
         job_manager.set_error(job.job_id, str(exc))
+        try:
+            # Mark MLflow run failed if active
+            import mlflow as _ml
+            _ml.set_tag("status", "error")
+        except Exception:
+            pass
 
 
 def bootstrap_job(raw_dir: Path, params: Dict[str, str]) -> JobRecord:
