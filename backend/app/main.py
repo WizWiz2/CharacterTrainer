@@ -68,9 +68,9 @@ async def start_training(
     files: List[UploadFile] = File(...),
 ) -> Dict[str, str]:
     if not name.strip():
-        raise HTTPException(status_code=400, detail="Имя персонажа обязательно")
+        raise HTTPException(status_code=400, detail="Character name is required")
     if len(files) < MIN_REFERENCE_IMAGES:
-        raise HTTPException(status_code=400, detail="Минимум 8 изображений")
+        raise HTTPException(status_code=400, detail="At least 8 images required")
 
     job_id = str(uuid4())
     job_dir = JOBS_ROOT / job_id

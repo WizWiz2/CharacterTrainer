@@ -90,7 +90,7 @@ export default function App(): JSX.Element {
         setErrorMsg(data.message || ENV_NOT_READY_MESSAGE);
       } else {
         setState("idle");
-        pushLog(`${ENV_LOG_PREFIX}${data.ed_lora_dir ?? "Ð½Ðµ Ð·Ð°Ð´Ð°Ð½"}`);
+        pushLog(`${ENV_LOG_PREFIX}${data.ed_lora_dir ?? "not set"}`);
         if (data.message) pushLog(data.message);
       }
     } catch (error) {
@@ -187,7 +187,7 @@ export default function App(): JSX.Element {
       <div className="max-w-6xl mx-auto">
         <header className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">Character LoRA Oneâ€‘Click</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Character LoRA One‑Click</h1>
             
           </div>
           <div className="flex items-center gap-2">
@@ -195,7 +195,7 @@ export default function App(): JSX.Element {
               onClick={checkEnv}
               className="px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-emerald-500 text-xs"
             >
-              ÐŸÑ€Ð¾Ð²ÐµÑ€Ð¸Ñ‚ÑŒ Ð¾ÐºÑ€ÑƒÐ¶ÐµÐ½Ð¸Ðµ
+              Check environment
             </button>
             <span
               className={`text-xs px-2 py-0.5 rounded border ${
@@ -204,16 +204,16 @@ export default function App(): JSX.Element {
                   : "bg-neutral-800 border-neutral-700"
               }`}
             >
-              {envChecked ? (envInfo.ok ? "OK" : "NEEDS SETUP") : "â€”"}
+              {envChecked ? (envInfo.ok ? "OK" : "NEEDS SETUP") : "—"}
             </span>
           </div>
         </header>
 
         <div className="grid lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 bg-neutral-900/70 border border-neutral-800 rounded-2xl p-4 shadow-sm">
-            <h2 className="text-lg font-medium mb-3">Ð”Ð°Ð½Ð½Ñ‹Ðµ Ð¿ÐµÑ€ÑÐ¾Ð½Ð°Ð¶Ð°</h2>
+            <h2 className="text-lg font-medium mb-3">Character data</h2>
             <div className="grid sm:grid-cols-2 gap-3">
-              <Field label="Ð˜Ð¼Ñ Ð¿ÐµÑ€ÑÐ¾Ð½Ð°Ð¶Ð° / ID">
+              <Field label="Character name / ID">
                 <input
                   value={name}
                   onChange={(event) => setName(event.target.value)}
@@ -228,7 +228,7 @@ export default function App(): JSX.Element {
                   className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 w-full"
                 />
               </Field>
-              <Field label="Ð‘Ð°Ð·Ð¾Ð²Ð°Ñ Ð¼Ð¾Ð´ÐµÐ»ÑŒ">
+              <Field label="Base model">
                 <select
                   value={baseModel}
                   onChange={(event) => setBaseModel(event.target.value)}
@@ -264,9 +264,9 @@ export default function App(): JSX.Element {
               </Field>
               <div className="flex items-center gap-2">
                 <input type="checkbox" checked={unetOnly} onChange={(event) => setUnetOnly(event.target.checked)} />
-                <span className="text-sm">UNet only (Ñ€ÐµÐºÐ¾Ð¼ÐµÐ½Ð´ÑƒÐµÑ‚ÑÑ Ð½Ð° ÑÑ‚Ð°Ñ€Ñ‚Ðµ)</span>
+                <span className="text-sm">UNet only (recommended when starting)</span>
               </div>
-              <Field label="Ð ÐµÐºÐ¾Ð¼. Ð²ÐµÑ Ð² ED">
+              <Field label="Recommended weight in ED">
                 <input
                   value={weight}
                   onChange={(event) => setWeight(event.target.value)}
@@ -277,12 +277,12 @@ export default function App(): JSX.Element {
 
             <div className="mt-4">
               <div className="border border-dashed border-neutral-700 rounded-2xl p-4 flex flex-col items-center justify-center gap-2">
-                <p className="text-sm text-neutral-300">Ð—Ð°Ð³Ñ€ÑƒÐ·Ð¸Ñ‚Ðµ 8â€“25 Ð¸Ð·Ð¾Ð±Ñ€Ð°Ð¶ÐµÐ½Ð¸Ð¹ (JPG/PNG/WEBP)</p>
+                <p className="text-sm text-neutral-300">Upload 8–25 images (JPG/PNG/WEBP)</p>
                 <button
                   onClick={() => inputRef.current?.click()}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition"
                 >
-                  Ð’Ñ‹Ð±Ñ€Ð°Ñ‚ÑŒ Ñ„Ð°Ð¹Ð»Ñ‹
+                  Choose files
                 </button>
                 <input
                   ref={inputRef}
@@ -292,7 +292,7 @@ export default function App(): JSX.Element {
                   className="hidden"
                   onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
                 />
-                {files.length > 0 && <p className="text-xs text-neutral-400">Ð’Ñ‹Ð±Ñ€Ð°Ð½Ð¾: {files.length}</p>}
+                {files.length > 0 && <p className="text-xs text-neutral-400">Selected: {files.length}</p>}
               </div>
               {thumbs.length > 0 && (
                 <div className="mt-3 grid grid-cols-6 gap-2">
@@ -309,7 +309,7 @@ export default function App(): JSX.Element {
                 disabled={!canStart}
                 className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50"
               >
-                â–¶ï¸Ž Ð—Ð°Ð¿ÑƒÑÑ‚Ð¸Ñ‚ÑŒ
+                ▶︎ Start One‑Click
               </button>
               <button
                 onClick={() => {
@@ -321,7 +321,7 @@ export default function App(): JSX.Element {
                 }}
                 className="px-4 py-2 rounded-xl bg-neutral-800 border border-neutral-700"
               >
-                Ð¡Ð±Ñ€Ð¾Ñ
+                Reset
               </button>
             </div>
 
@@ -329,12 +329,12 @@ export default function App(): JSX.Element {
           </div>
 
           <div className="bg-neutral-900/70 border border-neutral-800 rounded-2xl p-4 shadow-sm">
-            <h2 className="text-lg font-medium mb-3">Ð¡Ñ‚Ð°Ñ‚ÑƒÑ</h2>
+            <h2 className="text-lg font-medium mb-3">Status</h2>
             <div className="space-y-2 text-sm">
-              <Row k="Ð¡Ð¾ÑÑ‚Ð¾ÑÐ½Ð¸Ðµ" v={<Badge>{state.toUpperCase()}</Badge>} />
-              <Row k="Job ID" v={jobId || "â€”"} />
+              <Row k="State" v={<Badge>{state.toUpperCase()}</Badge>} />
+              <Row k="Job ID" v={jobId || "—"} />
               <div>
-                <div className="text-neutral-300 mb-1">Логи</div>
+                <div className="text-neutral-300 mb-1">Logs</div>
                 <div className="h-80 overflow-auto bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs font-mono whitespace-pre-wrap" id="logs">
                   {logs.map((l, i) => (
                     <div key={i}>{l}</div>
@@ -342,27 +342,27 @@ export default function App(): JSX.Element {
                   <div id="logs-end" />
                 </div>
                 <div className="mt-2">
-                  <div className="text-xs text-neutral-400 mb-1">Прогресс</div>
+                  <div className="text-xs text-neutral-400 mb-1">Progress</div>
                   <div className="h-2 bg-neutral-800 rounded"><div className="h-2 bg-emerald-500 rounded" style={{width: `${Math.round(progress*100)}%`}}/></div>
                   <div className="text-right text-xs text-neutral-500 mt-1">{Math.round(progress*100)}%</div>
                 </div>
               </div>
               <Row
-                k="ÐÑ€Ñ‚ÐµÑ„Ð°ÐºÑ‚"
-                v={<span className="break-all text-neutral-400 text-xs">{artifactPath || "â€”"}</span>}
+                k="Artifact"
+                v={<span className="break-all text-neutral-400 text-xs">{artifactPath || "—"}</span>}
               />
               <div className="mt-3 text-xs text-neutral-400">
-                ÐŸÐ¾Ð´ÑÐºÐ°Ð·ÐºÐ¸ Ð´Ð»Ñ ED: Ð±Ð°Ð·Ð° <b>dreamshaper_8</b>, LoRAâ€‘Ð²ÐµÑ <b>{weight}</b>, Sampler <b>DPM++ 2M Karras</b>, Steps <b>28â€“40</b>, CFG <b>4â€“6</b>.
-                Ð”Ð»Ñ Ð¿Ð¾Ð· â€” ControlNet (OpenPose/Depth).
+                Tips for Easy Diffusion: base <b>dreamshaper_8</b>, LoRA weight <b>{weight}</b>, Sampler <b>DPM++ 2M Karras</b>, Steps <b>28–40</b>, CFG <b>4–6</b>.
+                For poses use ControlNet (OpenPose/Depth).
               </div>
             </div>
           </div>
         </div>
         <div className="mt-6 flex flex-wrap gap-2">
 
-          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm" onClick={() => window.open('/artifacts','_blank')}>Открыть папку LoRA</button>
-          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm" onClick={() => { const payload = { name, trigger, base_model: baseModel, resolution, network_dim: networkDim, steps, unet_only: unetOnly, recommended_weight: weight, artifact: artifactPath || null, generated_at: new Date().toISOString() }; const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${(name || 'character').replace(/\s+/g, '_')}_passport.json`; a.click(); URL.revokeObjectURL(url); }}>Экспорт паспорта персонажа</button>
-          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm" onClick={() => { const prompts = [`${trigger}, ${name}, portrait, studio lighting, detailed face`, `${trigger}, ${name}, close-up, soft light, bokeh background`, `${trigger}, ${name}, half-body, cinematic light, 85mm`]; navigator.clipboard.writeText(prompts.map((p,i)=>`Scene ${i+1}: ${p}`).join('\n')).catch(()=>{}); alert('3 промпта скопированы в буфер обмена'); }}>Генерировать 3 тест‑сцены</button>
+          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm" onClick={() => window.open('/artifacts','_blank')}>Open LoRA folder</button>
+          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm" onClick={() => { const payload = { name, trigger, base_model: baseModel, resolution, network_dim: networkDim, steps, unet_only: unetOnly, recommended_weight: weight, artifact: artifactPath || null, generated_at: new Date().toISOString() }; const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${(name || 'character').replace(/\s+/g, '_')}_passport.json`; a.click(); URL.revokeObjectURL(url); }}>Export character passport</button>
+          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm" onClick={() => { const prompts = [`${trigger}, ${name}, portrait, studio lighting, detailed face`, `${trigger}, ${name}, close-up, soft light, bokeh background`, `${trigger}, ${name}, half-body, cinematic light, 85mm`]; navigator.clipboard.writeText(prompts.map((p,i)=>`Scene ${i+1}: ${p}`).join('\n')).catch(()=>{}); alert('3 prompts copied to clipboard'); }}>Generate 3 test scenes</button>
         </div>
       </div>
     </div>

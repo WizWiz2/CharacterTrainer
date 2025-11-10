@@ -90,7 +90,7 @@ export default function App(): JSX.Element {
         setErrorMsg(data.message || ENV_NOT_READY_MESSAGE);
       } else {
         setState("idle");
-        pushLog(`${ENV_LOG_PREFIX}${data.ed_lora_dir ?? "не задан"}`);
+        pushLog(`${ENV_LOG_PREFIX}${data.ed_lora_dir ?? "not set"}`);
         if (data.message) pushLog(data.message);
       }
     } catch (error) {
@@ -195,7 +195,7 @@ export default function App(): JSX.Element {
               onClick={checkEnv}
               className="px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-emerald-500 text-xs"
             >
-              Проверить окружение
+              Check environment
             </button>
             <span
               className={`text-xs px-2 py-0.5 rounded border ${
@@ -211,9 +211,9 @@ export default function App(): JSX.Element {
 
         <div className="grid lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 bg-neutral-900/70 border border-neutral-800 rounded-2xl p-4 shadow-sm">
-            <h2 className="text-lg font-medium mb-3">Данные персонажа</h2>
+            <h2 className="text-lg font-medium mb-3">Character data</h2>
             <div className="grid sm:grid-cols-2 gap-3">
-              <Field label="Имя персонажа / ID">
+              <Field label="Character name / ID">
                 <input
                   value={name}
                   onChange={(event) => setName(event.target.value)}
@@ -228,7 +228,7 @@ export default function App(): JSX.Element {
                   className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 w-full"
                 />
               </Field>
-              <Field label="Базовая модель">
+              <Field label="Base model">
                 <select
                   value={baseModel}
                   onChange={(event) => setBaseModel(event.target.value)}
@@ -264,9 +264,9 @@ export default function App(): JSX.Element {
               </Field>
               <div className="flex items-center gap-2">
                 <input type="checkbox" checked={unetOnly} onChange={(event) => setUnetOnly(event.target.checked)} />
-                <span className="text-sm">UNet only (рекомендуется на старте)</span>
+                <span className="text-sm">UNet only (recommended when starting)</span>
               </div>
-              <Field label="Реком. вес в ED">
+              <Field label="Recommended weight in ED">
                 <input
                   value={weight}
                   onChange={(event) => setWeight(event.target.value)}
@@ -277,12 +277,12 @@ export default function App(): JSX.Element {
 
             <div className="mt-4">
               <div className="border border-dashed border-neutral-700 rounded-2xl p-4 flex flex-col items-center justify-center gap-2">
-                <p className="text-sm text-neutral-300">Загрузите 8–25 изображений (JPG/PNG/WEBP)</p>
+                <p className="text-sm text-neutral-300">Upload 8–25 images (JPG/PNG/WEBP)</p>
                 <button
                   onClick={() => inputRef.current?.click()}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition"
                 >
-                  Выбрать файлы
+                  Choose files
                 </button>
                 <input
                   ref={inputRef}
@@ -292,7 +292,7 @@ export default function App(): JSX.Element {
                   className="hidden"
                   onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
                 />
-                {files.length > 0 && <p className="text-xs text-neutral-400">Выбрано: {files.length}</p>}
+                {files.length > 0 && <p className="text-xs text-neutral-400">Selected: {files.length}</p>}
               </div>
               {thumbs.length > 0 && (
                 <div className="mt-3 grid grid-cols-6 gap-2">
@@ -309,7 +309,7 @@ export default function App(): JSX.Element {
                 disabled={!canStart}
                 className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50"
               >
-                ▶︎ Запустить
+                ▶︎ Start One‑Click
               </button>
               <button
                 onClick={() => {
@@ -321,7 +321,7 @@ export default function App(): JSX.Element {
                 }}
                 className="px-4 py-2 rounded-xl bg-neutral-800 border border-neutral-700"
               >
-                Сброс
+                Reset
               </button>
             </div>
 
@@ -329,37 +329,37 @@ export default function App(): JSX.Element {
           </div>
 
           <div className="bg-neutral-900/70 border border-neutral-800 rounded-2xl p-4 shadow-sm">
-            <h2 className="text-lg font-medium mb-3">Статус</h2>
+            <h2 className="text-lg font-medium mb-3">Status</h2>
             <div className="space-y-2 text-sm">
-              <Row k="Состояние" v={<Badge>{state.toUpperCase()}</Badge>} />
+              <Row k="State" v={<Badge>{state.toUpperCase()}</Badge>} />
               <Row k="Job ID" v={jobId || "—"} />
               <div>
-                <div className="text-neutral-300 mb-1">Логи</div>
+                <div className="text-neutral-300 mb-1">Logs</div>
                 <div className="h-80 overflow-auto bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs font-mono whitespace-pre-wrap" id="logs">
                   {logs.length ? logs.join("\n") : "—"}
                 </div>
                 <div className="mt-2">
-                  <div className="text-xs text-neutral-400 mb-1">????????</div>
+                  <div className="text-xs text-neutral-400 mb-1">Progress</div>
                   <div className="h-2 bg-neutral-800 rounded"><div className="h-2 bg-emerald-500 rounded" style={{width: `${Math.round(progress*100)}%`}}/></div>
                   <div className="text-right text-xs text-neutral-500 mt-1">{Math.round(progress*100)}%</div>
                 </div>
               </div>
               <Row
-                k="Артефакт"
+                k="Artifact"
                 v={<span className="break-all text-neutral-400 text-xs">{artifactPath || "—"}</span>}
               />
               <div className="mt-3 text-xs text-neutral-400">
-                Подсказки для ED: база <b>dreamshaper_8</b>, LoRA‑вес <b>{weight}</b>, Sampler <b>DPM++ 2M Karras</b>, Steps <b>28–40</b>, CFG <b>4–6</b>.
-                Для поз — ControlNet (OpenPose/Depth).
+                Tips for Easy Diffusion: base <b>dreamshaper_8</b>, LoRA weight <b>{weight}</b>, Sampler <b>DPM++ 2M Karras</b>, Steps <b>28–40</b>, CFG <b>4–6</b>.
+                For poses use ControlNet (OpenPose/Depth).
               </div>
             </div>
           </div>
         </div>
 
         <div className="mt-6 flex flex-wrap gap-2">
-          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm">Открыть папку LoRA</button>
-          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm">Экспорт паспорта персонажа</button>
-          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm">Генерировать 3 тест‑сцены</button>
+          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm">Open LoRA folder</button>
+          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm">Export character passport</button>
+          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm">Generate 3 test scenes</button>
         </div>
       </div>
     </div>
