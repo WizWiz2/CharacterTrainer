@@ -67,12 +67,12 @@ def _build_training_command(
     base_key = job.params.get("base_model", config.base_model.use)
     base_path = config.base_model.paths.get(base_key)
     if not base_path:
-        raise ValueError(f"Базовая модель '{base_key}' не найдена в конфиге")
+        raise ValueError(f"Base model '{base_key}' not found in config")
     if not base_path.exists():
-        raise FileNotFoundError(f"Файл базовой модели не найден: {base_path}")
+        raise FileNotFoundError(f"Base model file not found: {base_path}")
 
     if not config.kohya.script_path.exists():
-        raise FileNotFoundError(f"Скрипт kohya_ss train_network.py не найден: {config.kohya.script_path}")
+        raise FileNotFoundError(f"kohya_ss train_network.py script not found: {config.kohya.script_path}")
 
     name = job.params.get("name", "character")
     resolution = int(job.params.get("resolution", config.train.resolution))
@@ -178,7 +178,7 @@ async def run_pipeline(job: JobRecord, raw_dir: Path, config: AppConfig) -> None
 
         workspace = config.kohya.workspace if config.kohya.workspace else config.kohya.script_path.parent
         if not workspace.exists():
-            raise FileNotFoundError(f"Рабочая директория kohya_ss не найдена: {workspace}")
+            raise FileNotFoundError(f"kohya_ss working directory not found: {workspace}")
 
         # Propagate env with CUDA_VISIBLE_DEVICES if GPU available
         env = os.environ.copy()
@@ -199,13 +199,13 @@ async def run_pipeline(job: JobRecord, raw_dir: Path, config: AppConfig) -> None
         await _stream_process_output(process, job.job_id)
         return_code = await process.wait()
         if return_code != 0:
-            raise RuntimeError(f"kohya_ss завершился с кодом {return_code}")
+            raise RuntimeError(f"kohya_ss exited with code {return_code}")
 
         artifact_source = expected_artifact
         if not artifact_source.exists():
             candidates = sorted(output_dir.glob(f"{artifact_stem}*{ARTIFACT_SUFFIX}"))
             if not candidates:
-                raise FileNotFoundError("Артефакт обучения не найден после завершения kohya_ss")
+                raise FileNotFoundError("Training artifact not found after kohya_ss finished")
             artifact_source = candidates[-1]
 
         job_manager.set_state(job.job_id, JobState.COPYING)

@@ -1,88 +1,87 @@
 # Character LoRA One‑Click (MVP)
 
-Короткая и практичная инструкция по запуску через Docker на Windows, настройке `.env`, скрипту запуска, монтированию моделей и `kohya_ss`, а также про кэш, чтобы тяжёлые зависимости не перекачивались заново.
+A concise, hands-on guide for running the stack with Docker on Windows, configuring `.env`, using the launch script, mounting models and `kohya_ss`, and keeping heavyweight dependencies cached.
 
-## О чём приложение
+## What the app does
 
-- Назначение: упрощённый «one‑click» пайплайн обучения LoRA персонажа на ваших референс‑изображениях.
-- Что делает:
-  - Принимает 8+ изображений, имя персонажа, триггер‑токен, базовую модель и параметры тренировки.
-  - Готовит датасет (раскладка кадров, подписи), запускает kohya_ss (`accelerate launch train_network.py`).
-  - Ведёт логи, отслеживает статус задачи и сохраняет артефакт `.safetensors`.
-- Архитектура:
-  - Backend (FastAPI): эндпоинты `/train`, `/jobs/{id}/status`, интеграция с kohya_ss.
-  - Frontend (React + Vite): UI для загрузки изображений, ввода параметров и мониторинга.
-  - Файлы и артефакты: `backend/data/jobs/<id>` и `backend/artifacts/ed_lora`.
-- Заметки и ограничения:
-  - По умолчанию конфигурация дружелюбна к CPU; для GPU используйте base‑образ с CUDA колёсами Torch (см. ниже).
-  - Базовые модели не поставляются; путь к ним задаётся через `.env` (`HOST_MODELS_DIR`).
-  - Репозиторий `kohya_ss` монтируется извне; версию контролируете вы.
+- **Purpose:** a simplified “one-click” pipeline that trains a character LoRA from your reference images.
+- **Features:**
+  - Accepts 8+ images, a character name, trigger token, base model, and training parameters.
+  - Prepares the dataset (layout/captions) and runs kohya_ss (`accelerate launch train_network.py`).
+  - Streams logs, tracks job status, and saves the resulting `.safetensors` artifact.
+- **Architecture:**
+  - Backend (FastAPI): `/train`, `/jobs/{id}/status`, and kohya_ss integration.
+  - Frontend (React + Vite): upload UI, parameter inputs, and status panel.
+  - Data locations: `backend/data/jobs/<id>` and `backend/artifacts/ed_lora`.
+- **Notes & limitations:**
+  - Default settings are CPU-friendly; for GPU training use the base image with CUDA Torch wheels (see below).
+  - Base models are not bundled—configure their path via `.env` (`HOST_MODELS_DIR`).
+  - The `kohya_ss` repo is mounted from the host so you control its revision.
 
-## Быстрый запуск (Windows + Docker)
+## Quick start (Windows + Docker)
 
-Требуется Docker Desktop. Убедитесь, что диск с проектом расшарен в Docker Desktop: Settings → Resources → File Sharing.
+Docker Desktop is required. Ensure the drive with the project is shared in Docker Desktop: Settings → Resources → File Sharing.
 
-1) Укажите путь к вашим моделям в `.env` (пример для EasyDiffusion):
+1. Point `.env` to your models directory (Easy Diffusion example):
 
 ```
 HOST_MODELS_DIR=C:/EasyDiffusion/models/stable-diffusion
 ```
 
-2) Запустите стек одной командой (PowerShell из корня репозитория):
+2. Launch the stack from the repo root (PowerShell):
 
 ```
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\up.ps1
 ```
 
-Скрипт:
-- один раз собирает базовый образ `charactertrainer-backend-base` с зафиксированным `torch` (по умолчанию 2.9.0),
-- запускает `docker compose up -d --build`,
-- показывает статус контейнеров.
+The script will:
+- build the `charactertrainer-backend-base` image once with a pinned `torch` (defaults to 2.9.0),
+- run `docker compose up -d --build`,
+- print container status.
 
-3) Откройте:
+3. Open:
 - UI: http://localhost:5173
-- Проверка backend: `POST http://localhost:8000/config/test`
+- Backend check: `POST http://localhost:8000/config/test`
 
-## Переменные окружения (.env)
+## Environment variables (.env)
 
-- `BASE_IMAGE=charactertrainer-backend-base` — базовый образ для backend (содержит тяжёлые зависимости, чтобы не качались при каждом билде).
-- `HOST_MODELS_DIR=...` — путь на хосте к папке с моделями. Она монтируется в контейнер по пути `/srv/models/external`.
+- `BASE_IMAGE=charactertrainer-backend-base` — backend base image (stores heavy deps so rebuilds stay fast).
+- `HOST_MODELS_DIR=...` — host path with your models; mounted into the container as `/srv/models/external`.
 
-Если `HOST_MODELS_DIR` не задан, используется локальная папка `./backend/models/external`.
+If `HOST_MODELS_DIR` is omitted, the project falls back to `./backend/models/external`.
 
-## Скрипт запуска (scripts/up.ps1)
+## Launch script (`scripts/up.ps1`)
 
-Запуск (CPU):
+CPU launch:
 
 ```
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\up.ps1
 ```
 
-Параметры:
-- `-CudaIndexUrl <url>` — собирать base‑образ с CUDA колёсами Torch (например, `https://download.pytorch.org/whl/cu124`).
-- `-RebuildBase` — принудительно пересобрать base‑образ.
+Parameters:
+- `-CudaIndexUrl <url>` — build the base image with CUDA Torch wheels (e.g. `https://download.pytorch.org/whl/cu124`).
+- `-RebuildBase` — force a rebuild of the base image.
 
-Скрипт автоматически создаёт/обновляет `.env` с `BASE_IMAGE`, собирает (при необходимости) базовый образ и поднимает стек.
+The script keeps `.env` in sync with `BASE_IMAGE`, rebuilds the base image when needed, and brings up the stack.
 
-## Модели и kohya_ss
+## Models and kohya_ss
 
-- Модели: в контейнере ожидаются по путям `/srv/models/...` или `/srv/models/external/...`.
-  - Пример: `backend/config.yaml` содержит ключ `dreamshaper_8: "/srv/models/external/dreamshaper_8.safetensors"`.
-  - Если имя файла другое — измените ключ в `backend/config.yaml` или переименуйте файл.
-- kohya_ss: репозиторий монтируется в контейнер по пути `/opt/kohya_ss` (см. `docker-compose.yml`).
-  - Если папки нет, выполните в корне: `git clone https://github.com/kohya-ss/sd-scripts.git kohya_ss`.
-  - Сообщение об ошибке с путём вида `/opt/...` — нормально: контейнер линуксовый.
+- Models should be available in the container under `/srv/models/...` or `/srv/models/external/...`.
+  - Example: `backend/config.yaml` expects `dreamshaper_8: "/srv/models/external/dreamshaper_8.safetensors"`.
+  - If your filename differs, adjust the config key or rename the file.
+- `kohya_ss` is mounted at `/opt/kohya_ss` (see `docker-compose.yml`).
+  - If the folder is missing, clone it: `git clone https://github.com/kohya-ss/sd-scripts.git kohya_ss`.
+  - Errors referencing `/opt/...` are expected—containers run Linux paths.
 
-## Кэш и большие зависимости
+## Cache and large dependencies
 
-- Torch и прочие тяжёлые зависимости устанавливаются в базовый образ `charactertrainer-backend-base` один раз. Обычные пересборки приложения не перекачивают 900+ МБ.
-- Кэш pip в сборке включён; кэш HuggingFace смонтирован томом `hf_cache` и сохраняется между перезапусками.
-- Не используйте без надобности `--no-cache` и не запускайте `docker system prune -a`, чтобы не терять кэш слоёв/образов.
+- Torch and other heavy deps live in the `charactertrainer-backend-base` image. Regular rebuilds skip re-downloading ~900 MB.
+- Build uses pip cache; the HuggingFace cache is mounted via the `hf_cache` volume and persists between runs.
+- Avoid `--no-cache` or `docker system prune -a` unless necessary—they wipe cached layers/images.
 
-## Частые команды
+## Common commands
 
-- Поднять/пересобрать: `docker compose up -d --build`
-- Логи backend: `docker compose logs -f backend`
-- Логи frontend: `docker compose logs -f frontend`
-- Проверка API: `curl -s -X POST http://localhost:8000/config/test -H "Content-Type: application/json" -d '{}'`
-
+- Build/bring up: `docker compose up -d --build`
+- Backend logs: `docker compose logs -f backend`
+- Frontend logs: `docker compose logs -f frontend`
+- API test: `curl -s -X POST http://localhost:8000/config/test -H "Content-Type: application/json" -d '{}'`

@@ -15,12 +15,12 @@ export const MIN_REFERENCE_IMAGES = 8;
 export const PREVIEW_LIMIT = 12;
 export const STATUS_POLL_INTERVAL_MS = 1500;
 
-export const LOG_DATASET_PREP = "⏳ Подготовка датасета…";
-export const LOG_TRAINING_START = "🚀 Тренировка запущена (kohya_ss)…";
+export const LOG_DATASET_PREP = "⏳ Preparing dataset…";
+export const LOG_TRAINING_START = "🚀 Training started (kohya_ss)…";
 export const ENV_LOG_PREFIX = "ED LoRA dir: ";
-export const ENV_NOT_READY_MESSAGE = "Окружение не готово";
-export const ERROR_NAME_REQUIRED = "Укажи имя персонажа (ID)";
-export const ERROR_MIN_IMAGES = "Загрузите минимум 8 изображений";
+export const ENV_NOT_READY_MESSAGE = "Environment is not ready";
+export const ERROR_NAME_REQUIRED = "Enter a character name (ID)";
+export const ERROR_MIN_IMAGES = "Upload at least 8 images";
 
 export function resolveApiBase(): string {
   const envOverride = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "");
