@@ -4,9 +4,6 @@ import asyncio
 import shutil
 from pathlib import Path
 from typing import Dict, List, Tuple
-import os
-
-import torch
 
 from .config import AppConfig
 from .constants import (
@@ -24,20 +21,14 @@ from .dataset import prepare_dataset
 from .job_manager import JobState, JobRecord, job_manager
 
 
-async def _stream_process_output(process: asyncio.subprocess.Process, job_id: str, on_line: callable | None = None) -> None:
+async def _stream_process_output(process: asyncio.subprocess.Process, job_id: str) -> None:
     if not process.stdout:
         return
     while True:
         line = await process.stdout.readline()
         if not line:
             break
-        text = line.decode("utf-8", errors="ignore").rstrip()
-        job_manager.append_log(job_id, text)
-        if on_line:
-            try:
-                on_line(text)
-            except Exception:
-                pass
+        job_manager.append_log(job_id, line.decode("utf-8", errors="ignore").rstrip())
 
 
 def _bool_param(value: str | bool, default: bool) -> bool:
@@ -73,63 +64,35 @@ def _build_training_command(
     base_key = job.params.get("base_model", config.base_model.use)
     base_path = config.base_model.paths.get(base_key)
     if not base_path:
-        raise ValueError(f"Base model '{base_key}' not found in config")
+        raise ValueError(f"Базовая модель '{base_key}' не найдена в конфиге")
     if not base_path.exists():
-        raise FileNotFoundError(f"Base model file not found: {base_path}")
+        raise FileNotFoundError(f"Файл базовой модели не найден: {base_path}")
 
     if not config.kohya.script_path.exists():
-        raise FileNotFoundError(f"kohya_ss train_network.py script not found: {config.kohya.script_path}")
+        raise FileNotFoundError(f"Скрипт kohya_ss train_network.py не найден: {config.kohya.script_path}")
 
     name = job.params.get("name", "character")
     resolution = int(job.params.get("resolution", config.train.resolution))
     steps = int(job.params.get("steps", config.train.steps))
     network_dim = int(job.params.get("network_dim", config.train.network_dim))
     unet_only = _bool_param(job.params.get("unet_only", config.train.unet_only), config.train.unet_only)
-    # Adjust mixed precision depending on device availability
-    mixed_precision = config.train.mixed_precision
-    use_cuda = torch.cuda.is_available()
-    if not use_cuda:
-        mixed_precision = "no"
-
-    # Ensure Accelerate config matches desired device
-    try:
-        accel_dir = Path("/root/.cache/huggingface/accelerate")
-        accel_dir.mkdir(parents=True, exist_ok=True)
-        cfg = (
-            "compute_environment: LOCAL_MACHINE\n"
-            "distributed_type: NO\n"
-            "downcast_bf16: 'no'\n"
-            "dynamo_backend: 'no'\n"
-            "machine_rank: 0\n"
-            "main_process_ip: 127.0.0.1\n"
-            "main_process_port: 29500\n"
-            f"mixed_precision: {mixed_precision}\n"
-            "num_machines: 1\n"
-            "num_processes: 1\n"
-            "rdzv_backend: static\n"
-            "same_network: true\n"
-            "tpu_name: null\n"
-            f"use_cpu: {'false' if use_cuda else 'true'}\n"
-        )
-        (accel_dir / "default_config.yaml").write_text(cfg, encoding="utf-8")
-    except Exception:
-        pass
 
     artifact_stem = config.kohya.artifact_template.format(name=name, base=base_key)
     expected_artifact = output_dir / f"{artifact_stem}{ARTIFACT_SUFFIX}"
 
     images_dir = dataset_dir / DATASET_IMAGES_SUBDIR
+    captions_dir = dataset_dir / DATASET_CAPTIONS_SUBDIR
 
     command: List[str] = [
         config.kohya.accelerate_bin,
         "launch",
-        # If CUDA present, hint to use GPU id 0
-        *(["--gpu_ids", "0"] if use_cuda else []),
         str(config.kohya.script_path),
         "--pretrained_model_name_or_path",
         str(base_path),
         "--train_data_dir",
         str(images_dir),
+        "--caption_metadata_dir",
+        str(captions_dir),
         "--resolution",
         f"{resolution},{resolution}",
         "--network_module",
@@ -150,18 +113,16 @@ def _build_training_command(
         str(config.train.train_batch_size),
         "--noise_offset",
         str(config.train.noise_offset),
-        "--caption_dropout_rate",
+        "--caption_dropout",
         str(config.train.caption_dropout),
         "--min_snr_gamma",
         str(config.train.min_snr_gamma),
         "--mixed_precision",
-        mixed_precision,
-        "--caption_extension",
-        ".txt",
+        config.train.mixed_precision,
     ]
 
     if unet_only:
-        command.append("--network_train_unet_only")
+        command.append("--train_unet_only")
     elif config.train.lr_text > 0:
         command.extend(["--text_encoder_lr", str(config.train.lr_text)])
 
@@ -170,14 +131,6 @@ def _build_training_command(
 
 async def run_pipeline(job: JobRecord, raw_dir: Path, config: AppConfig) -> None:
     try:
-        # Try optional MLflow import
-        mlflow = None
-        try:  # noqa: SIM105
-            import mlflow as _mlflow  # type: ignore
-            mlflow = _mlflow
-        except Exception:
-            mlflow = None
-
         job_manager.set_state(job.job_id, JobState.PREPPING)
         dataset_dir = _prepare_dataset(job, raw_dir, config)
 
@@ -192,76 +145,24 @@ async def run_pipeline(job: JobRecord, raw_dir: Path, config: AppConfig) -> None
 
         workspace = config.kohya.workspace if config.kohya.workspace else config.kohya.script_path.parent
         if not workspace.exists():
-            raise FileNotFoundError(f"kohya_ss working directory not found: {workspace}")
-
-        # Propagate env with CUDA_VISIBLE_DEVICES if GPU available
-        env = os.environ.copy()
-        use_cuda_runtime = False
-        try:
-            use_cuda_runtime = bool(torch.cuda.is_available())
-        except Exception:
-            use_cuda_runtime = False
-        if use_cuda_runtime:
-            env["CUDA_VISIBLE_DEVICES"] = env.get("CUDA_VISIBLE_DEVICES", "0") or "0"
-        # Collector for process logs (for MLflow artifact)
-        collected: List[str] = []
+            raise FileNotFoundError(f"Рабочая директория kohya_ss не найдена: {workspace}")
 
         process = await asyncio.create_subprocess_exec(
             *command,
             cwd=str(workspace),
-            env=env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )
-        # Optional line hook: parse simple progress or loss if present
-        def _on_line(s: str) -> None:
-            collected.append(s)
-            if mlflow is None:
-                return
-            # Very conservative parsing: log epoch increments as metric 'epoch_progress'
-            if "epoch is incremented" in s.lower():
-                # Count occurrences as progress steps
-                mlflow.log_metric("epoch_progress", 1, step=len([x for x in collected if "epoch is incremented" in x.lower()]))
-            # Optionally parse 'loss' tokens like 'loss: 0.1234'
-            if "loss" in s.lower():
-                try:
-                    import re
-                    m = re.search(r"loss\s*[:=]\s*([0-9]*\.?[0-9]+)", s, flags=re.IGNORECASE)
-                    if m:
-                        mlflow.log_metric("loss", float(m.group(1)), step=len(collected))
-                except Exception:
-                    pass
-
-        # If MLflow available, start a run
-        run_ctx = None
-        if mlflow is not None:
-            try:
-                run_ctx = mlflow.start_run(run_name=job.job_id)
-                # Log parameters
-                mlflow.log_params({
-                    "job_id": job.job_id,
-                    "name": job.params.get("name"),
-                    "trigger": job.params.get("trigger"),
-                    "base_model": job.params.get("base_model", config.base_model.use),
-                    "resolution": job.params.get("resolution", config.train.resolution),
-                    "network_dim": job.params.get("network_dim", config.train.network_dim),
-                    "steps": job.params.get("steps", config.train.steps),
-                    "unet_only": job.params.get("unet_only", config.train.unet_only),
-                    "mixed_precision": config.train.mixed_precision,
-                })
-            except Exception:
-                run_ctx = None
-
-        await _stream_process_output(process, job.job_id, on_line=_on_line)
+        await _stream_process_output(process, job.job_id)
         return_code = await process.wait()
         if return_code != 0:
-            raise RuntimeError(f"kohya_ss exited with code {return_code}")
+            raise RuntimeError(f"kohya_ss завершился с кодом {return_code}")
 
         artifact_source = expected_artifact
         if not artifact_source.exists():
             candidates = sorted(output_dir.glob(f"{artifact_stem}*{ARTIFACT_SUFFIX}"))
             if not candidates:
-                raise FileNotFoundError("Training artifact not found after kohya_ss finished")
+                raise FileNotFoundError("Артефакт обучения не найден после завершения kohya_ss")
             artifact_source = candidates[-1]
 
         job_manager.set_state(job.job_id, JobState.COPYING)
@@ -274,33 +175,9 @@ async def run_pipeline(job: JobRecord, raw_dir: Path, config: AppConfig) -> None
         job_manager.set_artifact(job.job_id, str(destination_path))
         job_manager.append_log(job.job_id, LOG_PIPELINE_DONE)
         job_manager.set_state(job.job_id, JobState.DONE)
-
-        # Log to MLflow: artifact + combined log
-        if mlflow is not None:
-            try:
-                # Write combined log
-                log_path = (raw_dir.parent / f"{artifact_stem}.log")
-                try:
-                    log_path.write_text("\n".join(collected), encoding="utf-8")
-                except Exception:
-                    pass
-                # Log artifacts
-                if destination_path.exists():
-                    mlflow.log_artifact(str(destination_path))
-                if log_path.exists():
-                    mlflow.log_artifact(str(log_path))
-                mlflow.set_tag("status", "success")
-            except Exception:
-                pass
     except Exception as exc:  # pragma: no cover - defensive
         job_manager.append_log(job.job_id, LOG_PIPELINE_ERROR.format(error=exc))
         job_manager.set_error(job.job_id, str(exc))
-        try:
-            # Mark MLflow run failed if active
-            import mlflow as _ml
-            _ml.set_tag("status", "error")
-        except Exception:
-            pass
 
 
 def bootstrap_job(raw_dir: Path, params: Dict[str, str]) -> JobRecord:

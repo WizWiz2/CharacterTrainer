@@ -1,11 +1,12 @@
+version: "3.9"
+
 services:
   backend:
     build:
       context: .
-      dockerfile: ${BACKEND_DOCKERFILE:-docker/backend.gpu.Dockerfile}
+      dockerfile: docker/backend.Dockerfile
       args:
-        BASE_IMAGE: ${BASE_IMAGE:-python:3.10-slim}
-    gpus: all
+        KOHYA_IMAGE: ${KOHYA_IMAGE:-ghcr.io/kohya-ss/sd-scripts:latest}
     ports:
       - "8000:8000"
     volumes:
@@ -13,19 +14,9 @@ services:
       - ./backend/artifacts:/app/backend/artifacts
       - ./backend/data:/app/backend/data
       - ./backend/models:/srv/models
-      - "${HOST_MODELS_DIR:-./backend/models/external}:/srv/models/external:ro"
-      - ./kohya_ss:/opt/kohya_ss:ro
-      - hf_cache:/root/.cache/huggingface
     environment:
       - PYTHONPATH=/app/backend
       - KOHYA_ROOT=/opt/kohya_ss
-      - HF_HOME=/root/.cache/huggingface
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
-    healthcheck:
-      test: ["CMD-SHELL", "python - <<'PY'\nimport sys, json, urllib.request\ntry:\n    req = urllib.request.Request('http://localhost:8000/config/test', data=b'{}', headers={'Content-Type':'application/json'}, method='POST')\n    with urllib.request.urlopen(req, timeout=3) as r:\n        sys.exit(0 if r.status==200 else 1)\nexcept Exception:\n    sys.exit(1)\nPY"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   frontend:
     build:
@@ -39,32 +30,3 @@ services:
       - VITE_API_URL=http://localhost:8000
     depends_on:
       - backend
-      - mlflow
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4173').on('response', r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\"" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  mlflow:
-    image: python:3.10-slim
-    container_name: charactertrainer-mlflow
-    working_dir: /srv
-    command: >
-      bash -lc "pip install --no-cache-dir mlflow==2.15.0 && \
-      mlflow server --host 0.0.0.0 --port 5000 \
-      --backend-store-uri sqlite:////srv/mlruns.db \
-      --default-artifact-root /mlruns"
-    volumes:
-      - mlruns:/mlruns
-    ports:
-      - "5000:5000"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c 'import socket; s=socket.socket(); s.settimeout(2); s.connect((\"localhost\",5000)); print(1)' "]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-volumes:
-  hf_cache:
-  mlruns:

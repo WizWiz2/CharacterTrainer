@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   apiUrl,
@@ -19,10 +19,16 @@ import {
   LOG_DATASET_PREP,
   LOG_TRAINING_START,
   MIN_REFERENCE_IMAGES,
-  PREVIEW_LIMIT,
   STATUS_POLL_INTERVAL_MS,
   resolveApiBase,
-} from "./constants_en";
+} from "./constants";
+
+import { TrainingForm, TrainingParams } from "./components/TrainingForm";
+import { ImageUploader } from "./components/ImageUploader";
+import { StatusPanel } from "./components/StatusPanel";
+import { Badge } from "./components/Badge";
+import { Row } from "./components/Row";
+import { Field } from "./components/Field";
 
 type JobState = "idle" | "prepping" | "training" | "copying" | "done" | "error";
 
@@ -43,40 +49,28 @@ interface StatusResponse {
 }
 
 export default function App(): JSX.Element {
-  const [name, setName] = useState("character");
-  const [trigger, setTrigger] = useState(DEFAULT_TRIGGER_TOKEN);
-  const [baseModel, setBaseModel] = useState(DEFAULT_BASE_MODEL);
-  const [resolution, setResolution] = useState(DEFAULT_RESOLUTION);
-  const [networkDim, setNetworkDim] = useState(DEFAULT_NETWORK_DIM);
-  const [steps, setSteps] = useState(DEFAULT_TRAIN_STEPS);
-  const [unetOnly, setUnetOnly] = useState(DEFAULT_UNET_ONLY);
-  const [weight, setWeight] = useState(DEFAULT_WEIGHT_HINT);
+  const [params, setParams] = useState<TrainingParams>({
+    name: "",
+    trigger: DEFAULT_TRIGGER_TOKEN,
+    baseModel: DEFAULT_BASE_MODEL,
+    resolution: DEFAULT_RESOLUTION,
+    networkDim: DEFAULT_NETWORK_DIM,
+    steps: DEFAULT_TRAIN_STEPS,
+    unetOnly: DEFAULT_UNET_ONLY,
+    weight: DEFAULT_WEIGHT_HINT,
+  });
 
   const [files, setFiles] = useState<File[]>([]);
-  const [thumbs, setThumbs] = useState<string[]>([]);
-  const inputRef = useRef<HTMLInputElement>(null);
-
   const [jobId, setJobId] = useState<string | null>(null);
   const [state, setState] = useState<JobState>("idle");
   const [logs, setLogs] = useState<string[]>([]);
   const [artifactPath, setArtifactPath] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>("");
-  const totalEpochsRef = useRef<number | null>(null);
-  const [progress, setProgress] = useState<number>(0);
-  const backendBase = useMemo(() => resolveApiBase().replace(/\/api$/, ""), []);
-  const canStart = useMemo(
-    () => Boolean(name.trim()) && files.length >= MIN_REFERENCE_IMAGES && !["prepping", "training"].includes(state),
-    [name, files, state]
-  );
 
   const [envChecked, setEnvChecked] = useState(false);
   const [envInfo, setEnvInfo] = useState<EnvInfo>({ ok: false });
 
-  useEffect(() => {
-    const urls = files.slice(0, PREVIEW_LIMIT).map((f) => URL.createObjectURL(f));
-    setThumbs(urls);
-    return () => { urls.forEach((u) => URL.revokeObjectURL(u)); };
-  }, [files]);
+  const backendBase = useMemo(() => resolveApiBase().replace(/\/api$/, ""), []);
 
   async function checkEnv(): Promise<void> {
     setEnvChecked(true);
@@ -92,7 +86,7 @@ export default function App(): JSX.Element {
         setErrorMsg(data.message || ENV_NOT_READY_MESSAGE);
       } else {
         setState("idle");
-        pushLog(`${ENV_LOG_PREFIX}${data.ed_lora_dir ?? "unknown"}`);
+        pushLog(`${ENV_LOG_PREFIX}${data.ed_lora_dir ?? "не задан"}`);
         if (data.message) pushLog(data.message);
       }
     } catch (error) {
@@ -105,34 +99,28 @@ export default function App(): JSX.Element {
     setLogs((prev) => [...prev, line]);
   }
 
-  useEffect(() => {
-    const el = document.getElementById("logs");
-    if (el) el.scrollTop = el.scrollHeight;
-    for (const l of logs) {
-      const m = l.match(/num epochs .*?:\s*(\d+)/i);
-      if (m) totalEpochsRef.current = Number(m[1]);
-    }
-    const ep = logs.filter((l) => l.toLowerCase().includes("epoch is incremented")).length;
-    const total = totalEpochsRef.current ?? 0;
-    if (total > 0) setProgress(Math.max(0, Math.min(1, ep / total)));
-  }, [logs]);
-
   async function handleStart(): Promise<void> {
     setLogs([]);
     setErrorMsg("");
     setArtifactPath("");
-    if (!name.trim()) { setErrorMsg(ERROR_NAME_REQUIRED); return; }
-    if (files.length < MIN_REFERENCE_IMAGES) { setErrorMsg(ERROR_MIN_IMAGES); return; }
+    if (!params.name.trim()) {
+      setErrorMsg(ERROR_NAME_REQUIRED);
+      return;
+    }
+    if (files.length < MIN_REFERENCE_IMAGES) {
+      setErrorMsg(ERROR_MIN_IMAGES);
+      return;
+    }
 
     const form = new FormData();
     files.forEach((f) => form.append("files", f));
-    form.append("name", name.trim());
-    form.append("trigger", trigger.trim());
-    form.append("base_model", baseModel);
-    form.append("resolution", String(resolution));
-    form.append("network_dim", String(networkDim));
-    form.append("steps", String(steps));
-    form.append("unet_only", String(unetOnly));
+    form.append("name", params.name.trim());
+    form.append("trigger", params.trigger.trim());
+    form.append("base_model", params.baseModel);
+    form.append("resolution", String(params.resolution));
+    form.append("network_dim", String(params.networkDim));
+    form.append("steps", String(params.steps));
+    form.append("unet_only", String(params.unetOnly));
 
     try {
       setState("prepping");
@@ -151,6 +139,7 @@ export default function App(): JSX.Element {
 
   async function pollStatus(id: string): Promise<void> {
     let stopped = false;
+
     const poll = async (): Promise<void> => {
       if (stopped) return;
       try {
@@ -158,10 +147,20 @@ export default function App(): JSX.Element {
         if (!res.ok) throw new Error(`/jobs/${id}/status ${res.status}`);
         const data: StatusResponse = await res.json();
         if (Array.isArray(data.logs)) setLogs(data.logs);
-        if (typeof data.state === "string") setState(data.state as JobState);
+        if (typeof data.state === "string") {
+          setState(data.state as JobState);
+        }
         if (data.artifact_path) setArtifactPath(data.artifact_path);
-        if (data.error) { setErrorMsg(data.error); setState("error"); stopped = true; return; }
-        if (data.state === "done" || data.state === "error") { stopped = true; return; }
+        if (data.error) {
+          setErrorMsg(data.error);
+          setState("error");
+          stopped = true;
+          return;
+        }
+        if (data.state === "done" || data.state === "error") {
+          stopped = true;
+          return;
+        }
       } catch (error) {
         setErrorMsg(error instanceof Error ? error.message : String(error));
         setState("error");
@@ -170,134 +169,110 @@ export default function App(): JSX.Element {
       }
       window.setTimeout(poll, STATUS_POLL_INTERVAL_MS);
     };
+
     void poll();
   }
+
+  const canStart = useMemo(() => state === "idle" || state === "error", [state]);
+
+  const resetState = () => {
+    setState("idle");
+    setLogs([]);
+    setJobId(null);
+    setArtifactPath("");
+    setErrorMsg("");
+  };
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 p-6">
       <div className="max-w-6xl mx-auto">
         <header className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">Character LoRA One-Click</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Character LoRA One‑Click</h1>
+            <span className="text-xs px-2 py-1 rounded bg-neutral-800 border border-neutral-700">UI Prototype</span>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={checkEnv} className="px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-emerald-500 text-xs">Check Environment</button>
-            <span className={`text-xs px-2 py-0.5 rounded border ${envChecked && envInfo.ok ? "bg-emerald-900/30 border-emerald-700" : "bg-neutral-800 border-neutral-700"}`}>
-              {envChecked ? (envInfo.ok ? "OK" : "NEEDS SETUP") : "-"}
+            <button
+              onClick={checkEnv}
+              className="px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-emerald-500 text-xs"
+            >
+              Проверить окружение
+            </button>
+            <span
+              className={`text-xs px-2 py-0.5 rounded border ${envChecked && envInfo.ok
+                  ? "bg-emerald-900/30 border-emerald-700"
+                  : "bg-neutral-800 border-neutral-700"
+                }`}
+            >
+              {envChecked ? (envInfo.ok ? "OK" : "NEEDS SETUP") : "—"}
             </span>
           </div>
         </header>
 
         <div className="grid lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 bg-neutral-900/70 border border-neutral-800 rounded-2xl p-4 shadow-sm">
-            <h2 className="text-lg font-medium mb-3">Training Parameters</h2>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <Field label="Character name / ID">
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="sofia" className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500 w-full" />
-              </Field>
-              <Field label="Trigger token">
-                <input value={trigger} onChange={(e) => setTrigger(e.target.value)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 w-full" />
-              </Field>
-              <Field label="Base model">
-                <select value={baseModel} onChange={(e) => setBaseModel(e.target.value)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 w-full">
-                  <option value="dreamshaper_8">dreamshaper_8 (SD1.5)</option>
-                  <option value="sd15">SD 1.5 (vanilla)</option>
-                </select>
-              </Field>
-              <Field label="Resolution">
-                <input type="number" value={resolution} onChange={(e) => setResolution(Number.parseInt(e.target.value) || 512)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 w-full" />
-              </Field>
-              <Field label="Network rank (dim)">
-                <input type="number" value={networkDim} onChange={(e) => setNetworkDim(Number.parseInt(e.target.value) || 32)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 w-full" />
-              </Field>
-              <Field label="Steps">
-                <input type="number" value={steps} onChange={(e) => setSteps(Number.parseInt(e.target.value) || 2500)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 w-full" />
-              </Field>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" checked={unetOnly} onChange={(e) => setUnetOnly(e.target.checked)} />
-                <span className="text-sm">UNet only (faster, lower quality)</span>
-              </div>
-              <Field label="Recommended weight (in SD)">
-                <input value={weight} onChange={(e) => setWeight(e.target.value)} className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 w-full" />
-              </Field>
-            </div>
+            <h2 className="text-lg font-medium mb-3">Данные персонажа</h2>
 
-            <div className="mt-4">
-              <div className="border border-dashed border-neutral-700 rounded-2xl p-4 flex flex-col items-center justify-center gap-2">
-                <p className="text-sm text-neutral-300">Upload 8-25 reference images (JPG/PNG/WEBP)</p>
-                <button onClick={() => inputRef.current?.click()} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition">Choose files</button>
-                <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
-                {files.length > 0 && <p className="text-xs text-neutral-400">Selected: {files.length}</p>}
-              </div>
-              {thumbs.length > 0 && (
-                <div className="mt-3 grid grid-cols-6 gap-2">
-                  {thumbs.map((url, index) => (<img key={index} src={url} className="w-full h-20 object-cover rounded-lg border border-neutral-800" />))}
-                </div>
-              )}
-            </div>
+            <TrainingForm params={params} onChange={setParams} />
+
+            <ImageUploader files={files} onFilesChange={setFiles} />
 
             <div className="mt-4 flex gap-2">
-              <button onClick={handleStart} disabled={!canStart} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50">Run</button>
-              <button onClick={() => { setState("idle"); setLogs([]); setJobId(null); setArtifactPath(""); setErrorMsg(""); }} className="px-4 py-2 rounded-xl bg-neutral-800 border border-neutral-700">Reset</button>
+              <button
+                onClick={handleStart}
+                disabled={!canStart}
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50"
+              >
+                ▶︎ Запустить One‑Click
+              </button>
+              <button
+                onClick={resetState}
+                className="px-4 py-2 rounded-xl bg-neutral-800 border border-neutral-700"
+              >
+                Сброс
+              </button>
             </div>
 
             {errorMsg && <div className="mt-3 text-sm text-red-400">{errorMsg}</div>}
           </div>
 
-          <div className="bg-neutral-900/70 border border-neutral-800 rounded-2xl p-4 shadow-sm">
-            <h2 className="text-lg font-medium mb-3">Status</h2>
-            <div className="space-y-2 text-sm">
-              <Row k="State" v={<Badge>{state.toUpperCase()}</Badge>} />
-              <Row k="Job ID" v={jobId || "-"} />
-              <div>
-                <div className="text-neutral-300 mb-1">Logs</div>
-                <div className="h-80 overflow-auto bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs font-mono whitespace-pre-wrap" id="logs">
-                  {logs.map((l, i) => (<div key={i}>{l}</div>))}
-                </div>
-                <div className="mt-2">
-                  <div className="text-xs text-neutral-400 mb-1">Progress</div>
-                  <div className="h-2 bg-neutral-800 rounded"><div className="h-2 bg-emerald-500 rounded" style={{ width: `${Math.round(progress * 100)}%` }} /></div>
-                  <div className="text-right text-xs text-neutral-500 mt-1">{Math.round(progress * 100)}%</div>
-                </div>
-              </div>
-              <Row k="Artifact" v={<span className="break-all text-neutral-400 text-xs">{artifactPath || "-"}</span>} />
-              <div className="mt-3 text-xs text-neutral-400">Recommended for EasyDiffusion: model <b>dreamshaper_8</b>, LoRA weight <b>{weight}</b>, Sampler <b>DPM++ 2M Karras</b>, Steps <b>28-40</b>, CFG <b>4-6</b>. Use ControlNet (OpenPose/Depth) if needed.</div>
-            </div>
-          </div>
+          <StatusPanel
+            state={state}
+            jobId={jobId}
+            logs={logs}
+            artifactPath={artifactPath}
+          />
         </div>
 
         <div className="mt-6 flex flex-wrap gap-2">
-          <a className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm" href={`${backendBase}/artifacts/`} target="_blank" rel="noreferrer">Open LoRA Folder</a>
-          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm" onClick={() => { const payload = { name, trigger, base_model: baseModel, resolution, network_dim: networkDim, steps, unet_only: unetOnly, recommended_weight: weight, artifact: artifactPath || null, generated_at: new Date().toISOString() }; const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${(name || 'character').replace(/\s+/g, '_')}_passport.json`; a.click(); URL.revokeObjectURL(url); }}>Export Character Passport</button>
-          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm" onClick={() => { const prompts = [`${trigger}, ${name}, portrait, studio lighting, detailed face`, `${trigger}, ${name}, close-up, soft light, bokeh background`, `${trigger}, ${name}, half-body, cinematic light, 85mm`]; navigator.clipboard.writeText(prompts.map((p,i)=>`Scene ${i+1}: ${p}`).join('\n')).then(()=>alert('3 test scenes copied to clipboard')).catch(()=>{}); }}>Generate 3 Test Scenes</button>
+          <a
+            href={`${backendBase}/artifacts/`}
+            target="_blank"
+            rel="noreferrer"
+            className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm"
+          >
+            Открыть папку LoRA
+          </a>
+          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm" onClick={() => {
+            const payload = { ...params, recommended_weight: params.weight, artifact: artifactPath || null, generated_at: new Date().toISOString() };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${(params.name || 'character').replace(/\s+/g, '_')}_passport.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}>
+            Экспорт паспорта персонажа
+          </button>
+          <button className="px-3 py-2 rounded-xl bg-neutral-800 border border-neutral-700 text-sm" onClick={() => {
+            const prompts = [`${params.trigger}, ${params.name}, portrait, studio lighting, detailed face`, `${params.trigger}, ${params.name}, close-up, soft light, bokeh background`, `${params.trigger}, ${params.name}, half-body, cinematic light, 85mm`];
+            navigator.clipboard.writeText(prompts.map((p, i) => `Scene ${i + 1}: ${p}`).join('\n')).then(() => alert('3 test scenes copied to clipboard')).catch(() => { });
+          }}>
+            Генерировать 3 тест‑сцены
+          </button>
         </div>
       </div>
     </div>
   );
 }
-
-function Field({ label, children }: { label: string; children: React.ReactNode }): JSX.Element {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="text-sm text-neutral-300">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function Row({ k, v }: { k: string; v: React.ReactNode }): JSX.Element {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-neutral-300">{k}</span>
-      <span className="text-neutral-400">{v}</span>
-    </div>
-  );
-}
-
-function Badge({ children }: { children: React.ReactNode }): JSX.Element {
-  return <span className="px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 text-xs">{children}</span>;
-}
-
-
-
-

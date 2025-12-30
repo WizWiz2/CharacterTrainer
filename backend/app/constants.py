@@ -44,17 +44,17 @@ DATASET_CAPTIONS_SUBDIR = "captions"
 
 MIN_REFERENCE_IMAGES = 8
 
-CONFIG_TEST_MESSAGE = "Environment is ready for training (kohya_ss)"
+CONFIG_TEST_MESSAGE = "Окружение готово к тренировке (kohya_ss)"
 
-LOG_PIPELINE_STARTED = "🚀 Starting one-click pipeline…"
-LOG_PIPELINE_MODEL = "Base model: {base}"
-LOG_PIPELINE_FRAME_COUNT = "Frames: {count}"
-LOG_PIPELINE_DATASET = "📦 Preparing images…"
-LOG_PIPELINE_DATASET_DONE = "✅ Dataset prepared"
-LOG_PIPELINE_TRAINING_START = "🚀 Launching kohya_ss…"
-LOG_PIPELINE_COPYING = "📁 Copying to {path}"
-LOG_PIPELINE_DONE = "✅ Done! Use weight 0.7–0.85 in Easy Diffusion."
-LOG_PIPELINE_ERROR = "❌ Error: {error}"
+LOG_PIPELINE_STARTED = "🚀 Стартуем пайплайн one-click…"
+LOG_PIPELINE_MODEL = "Модель базы: {base}"
+LOG_PIPELINE_FRAME_COUNT = "Кадров: {count}"
+LOG_PIPELINE_DATASET = "📦 Подготовка изображений…"
+LOG_PIPELINE_DATASET_DONE = "✅ Датасет подготовлен"
+LOG_PIPELINE_TRAINING_START = "🚀 Запускаем kohya_ss…"
+LOG_PIPELINE_COPYING = "📁 Копируем в {path}"
+LOG_PIPELINE_DONE = "✅ Готово! Используйте вес 0.7–0.85 в Easy Diffusion."
+LOG_PIPELINE_ERROR = "❌ Ошибка: {error}"
 
 ARTIFACT_TEMPLATE = "{name}_lora_{base}_v1"
 ARTIFACT_SUFFIX = ".safetensors"

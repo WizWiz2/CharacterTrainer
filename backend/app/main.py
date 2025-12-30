@@ -6,7 +6,6 @@ from typing import Dict, List
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import AppConfig, load_config
@@ -23,7 +22,6 @@ from .constants import (
 )
 from .job_manager import job_manager
 from .training import bootstrap_job, run_pipeline
-from .diagnostics import gpu_diagnostics
 
 app = FastAPI(title=API_TITLE, version=API_VERSION)
 app.add_middleware(
@@ -38,11 +36,6 @@ config: AppConfig = load_config()
 
 JOBS_ROOT = DEFAULT_JOBS_ROOT
 JOBS_ROOT.mkdir(parents=True, exist_ok=True)
-
-# Serve artifacts statically for easy access from UI
-ARTIFACTS_DIR = (Path(__file__).resolve().parents[1] / "artifacts").resolve()
-ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/artifacts", StaticFiles(directory=str(ARTIFACTS_DIR), html=True), name="artifacts")
 
 
 @app.post("/config/test")
@@ -68,9 +61,9 @@ async def start_training(
     files: List[UploadFile] = File(...),
 ) -> Dict[str, str]:
     if not name.strip():
-        raise HTTPException(status_code=400, detail="Character name is required")
+        raise HTTPException(status_code=400, detail="Имя персонажа обязательно")
     if len(files) < MIN_REFERENCE_IMAGES:
-        raise HTTPException(status_code=400, detail="At least 8 images required")
+        raise HTTPException(status_code=400, detail="Минимум 8 изображений")
 
     job_id = str(uuid4())
     job_dir = JOBS_ROOT / job_id
@@ -110,8 +103,3 @@ async def job_status(job_id: str) -> Dict[str, object]:
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job_manager.to_dict(job_id)
-
-
-@app.get("/gpu/diagnostics")
-async def gpu_diag() -> Dict[str, object]:
-    return gpu_diagnostics()

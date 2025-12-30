@@ -1,0 +1,301 @@
+
+> character-lora-one-click@0.1.0 test
+> vitest run
+
+
+[1m[46m RUN [49m[22m [36mv4.0.16 [39m[90mC:/Pet/CharacterTrainer/frontend[39m
+
+ [32m✓[39m src/components/Field.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 138[2mms[22m[39m
+[90mstdout[2m | src/components/StatusPanel.test.tsx[2m > [22m[2mStatusPanel[2m > [22m[2mdisplays job state and logs
+[22m[39mDEBUG: Logs received: [ [32m'Step 1'[39m, [32m'Step 2'[39m ]
+DEBUG: Current ep: [33m0[39m
+DEBUG: Total: [33m0[39m
+
+ [32m✓[39m src/components/TrainingForm.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 242[2mms[22m[39m
+[90mstdout[2m | src/components/StatusPanel.test.tsx[2m > [22m[2mStatusPanel[2m > [22m[2mcalculates progress from logs
+[22m[39mDEBUG: Logs received: [ [32m'num epochs: 10'[39m, [32m'epoch is incremented'[39m, [32m'epoch is incremented'[39m ]
+DEBUG: Current ep: [33m2[39m
+DEBUG: Total: [33m0[39m
+
+ [31m❯[39m src/components/StatusPanel.test.tsx [2m([22m[2m2 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 1238[2mms[22m[39m
+     [32m✓[39m displays job state and logs[32m 182[2mms[22m[39m
+[31m     [31m×[31m calculates progress from logs[39m[33m 1048[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/components/StatusPanel.test.tsx[2m > [22mStatusPanel[2m > [22mcalculates progress from logs
+[31m[1mTestingLibraryElementError[22m[39m: Unable to find an element with the text: 20%. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"bg-neutral-900/70 border border-neutral-800 rounded-2xl p-4 shadow-sm"[39m
+    [36m>[39m
+      [36m<h2[39m
+        [33mclass[39m=[32m"text-lg font-medium mb-3"[39m
+      [36m>[39m
+        [0mСтатус[0m
+      [36m</h2>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-2 text-sm"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between gap-3"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-neutral-300"[39m
+          [36m>[39m
+            [0mСостояние[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-neutral-400"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 text-xs"[39m
+            [36m>[39m
+              [0mTRAINING[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between gap-3"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-neutral-300"[39m
+          [36m>[39m
+            [0mJob ID[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-neutral-400"[39m
+          [36m>[39m
+            [0m123[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"text-neutral-300 mb-1"[39m
+          [36m>[39m
+            [0mЛоги[0m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-48 overflow-auto bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs font-mono whitespace-pre-wrap"[39m
+            [33mid[39m=[32m"logs"[39m
+          [36m>[39m
+            [0mnum epochs: 10
+epoch is incremented
+epoch is incremented[0m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"mt-2"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"text-xs text-neutral-400 mb-1"[39m
+            [36m>[39m
+              [0mProgress[0m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"h-2 bg-neutral-800 rounded"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"h-2 bg-emerald-500 rounded"[39m
+                [33mstyle[39m=[32m"width: 0%;"[39m
+              [36m/>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"text-right text-xs text-neutral-500 mt-1"[39m
+            [36m>[39m
+              [0m0[0m
+              [0m%[0m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between gap-3"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-neutral-300"[39m
+          [36m>[39m
+            [0mАртефакт[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-neutral-400"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"break-all text-neutral-400 text-xs"[39m
+            [36m>[39m
+              [0m—[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"mt-3 text-xs text-neutral-400"[39m
+        [36m>[39m
+          [0mПодсказки для ED: база [0m
+          [36m<b>[39m
+            [0mdreamshaper_8[0m
+          [36m</b>[39m
+          [0m, Sampler [0m
+          [36m<b>[39m
+            [0mDPM++ 2M Karras[0m
+          [36m</b>[39m
+          [0m, Steps [0m
+          [36m<b>[39m
+            [0m28–40[0m
+          [36m</b>[39m
+          [0m, CFG [0m
+          [36m<b>[39m
+            [0m4–6[0m
+          [36m</b>[39m
+          [0m. Для поз — ControlNet (OpenPose/Depth).[0m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"bg-neutral-900/70 border border-neutral-800 rounded-2xl p-4 shadow-sm"[39m
+    [36m>[39m
+      [36m<h2[39m
+        [33mclass[39m=[32m"text-lg font-medium mb-3"[39m
+      [36m>[39m
+        [0mСтатус[0m
+      [36m</h2>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-2 text-sm"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between gap-3"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-neutral-300"[39m
+          [36m>[39m
+            [0mСостояние[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-neutral-400"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"px-2 py-0.5 rounded bg-neutral-800 border border-neutral-700 text-xs"[39m
+            [36m>[39m
+              [0mTRAINING[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between gap-3"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-neutral-300"[39m
+          [36m>[39m
+            [0mJob ID[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-neutral-400"[39m
+          [36m>[39m
+            [0m123[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"text-neutral-300 mb-1"[39m
+          [36m>[39m
+            [0mЛоги[0m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-48 overflow-auto bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs font-mono whitespace-pre-wrap"[39m
+            [33mid[39m=[32m"logs"[39m
+          [36m>[39m
+            [0mnum epochs: 10
+epoch is incremented
+epoch is incremented[0m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"mt-2"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"text-xs text-neutral-400 mb-1"[39m
+            [36m>[39m
+              [0mProgress[0m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"h-2 bg-neutral-800 rounded"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"h-2 bg-emerald-500 rounded"[39m
+                [33mstyle[39m=[32m"width: 0%;"[39m
+              [36m/>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"text-right text-xs text-neutral-500 mt-1"[39m
+            [36m>[39m
+              [0m0[0m
+              [0m%[0m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between gap-3"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-neutral-300"[39m
+          [36m>[39m
+            [0mАртефакт[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-neutral-400"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"break-all text-neutral-400 text-xs"[39m
+            [36m>[39m
+              [0m—[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"mt-3 text-xs text-neutral-400"[39m
+        [36m>[39m
+          [0mПодсказки для ED: база [0m
+          [36m<b>[39m
+            [0mdreamshaper_8[0m
+          [36m</b>[39m
+          [0m, Sampler [0m
+          [36m<b>[39m
+            [0mDPM++ 2M Karras[0m
+          [36m</b>[39m
+          [0m, Steps [0m
+          [36m<b>[39m
+            [0m28–40[0m
+          [36m</b>[39m
+          [0m, CFG [0m
+          [36m<b>[39m
+            [0m4–6[0m
+          [36m</b>[39m
+          [0m. Для поз — ControlNet (OpenPose/Depth).[0m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+[90m [2m❯[22m waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:[2m163:27[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m86:33[22m[39m
+[36m [2m❯[22m src/components/StatusPanel.test.tsx:[2m36:29[22m[39m
+    [90m 34| [39m        [90m// screen.debug(); [39m
+    [90m 35| [39m        // Use findByText to wait for state updates if necessary (thou…
+    [90m 36| [39m        [34mexpect[39m([35mawait[39m screen[33m.[39m[34mfindByText[39m([32m'20%'[39m))[33m.[39m[34mtoBeInTheDocument[39m()[33m;[39m
+    [90m   | [39m                            [31m^[39m
+    [90m 37| [39m    })[33m;[39m
+    [90m 38| [39m})[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m4 passed[39m[22m[90m (5)[39m
+[2m   Start at [22m 19:43:38
+[2m   Duration [22m 5.87s[2m (transform 664ms, setup 1.40s, import 1.70s, tests 1.62s, environment 8.30s)[22m
+
