@@ -47,6 +47,9 @@ class JobManager:
         with self._lock:
             job = self._jobs[job_id]
             job.logs.append(message)
+            # Limit to last 2000 lines to prevent UI/Network lag
+            if len(job.logs) > 2000:
+                job.logs = job.logs[-2000:]
 
     def set_artifact(self, job_id: str, path: str) -> None:
         with self._lock:

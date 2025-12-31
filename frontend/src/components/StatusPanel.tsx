@@ -13,18 +13,38 @@ export function StatusPanel({ state, jobId, logs, artifactPath }: StatusPanelPro
     const [progress, setProgress] = useState<number>(0);
     const totalEpochsRef = useRef<number | null>(null);
 
-    useEffect(() => {
-        const el = document.getElementById("logs");
-        if (el) el.scrollTop = el.scrollHeight;
+    const logsRef = useRef<HTMLDivElement>(null);
 
-        // Progress calculation based on logs
-        for (const l of logs) {
-            const m = l.match(/num epochs .*?:\s*(\d+)/i);
-            if (m) totalEpochsRef.current = Number(m[1]);
+    useEffect(() => {
+        const el = logsRef.current;
+        if (el) {
+            // Auto-scroll only if user is near bottom (within 50px)
+            const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+            if (isNearBottom) {
+                el.scrollTop = el.scrollHeight;
+            }
         }
-        const ep = logs.filter((l) => l.toLowerCase().includes("epoch is incremented")).length;
-        const total = totalEpochsRef.current ?? 0;
-        if (total > 0) setProgress(Math.max(0, Math.min(1, ep / total)));
+
+        // Progress calculation based on steps (from tqdm output)
+        let totalSteps = 0;
+        let currentStep = 0;
+
+        for (const l of logs) {
+            // Parse total steps: "total optimization steps / 学習ステップ数: 2500"
+            const totalMatch = l.match(/total optimization steps.*?:\s*(\d+)/i);
+            if (totalMatch) totalSteps = Number(totalMatch[1]);
+
+            // Parse current step: "steps:   1%|          | 29/2500"
+            const stepMatch = l.match(/\|\s*(\d+)\/(\d+)/);
+            if (stepMatch) {
+                currentStep = Math.max(currentStep, Number(stepMatch[1]));
+                if (!totalSteps) totalSteps = Number(stepMatch[2]);
+            }
+        }
+
+        if (totalSteps > 0) {
+            setProgress(Math.max(0, Math.min(1, currentStep / totalSteps)));
+        }
     }, [logs]);
 
     return (
@@ -37,7 +57,8 @@ export function StatusPanel({ state, jobId, logs, artifactPath }: StatusPanelPro
                     <div className="text-neutral-300 mb-1">Логи</div>
                     <div
                         id="logs"
-                        className="h-48 overflow-auto bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs font-mono whitespace-pre-wrap"
+                        ref={logsRef}
+                        className="h-96 overflow-y-auto overflow-x-hidden bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs font-mono whitespace-pre-wrap break-all"
                     >
                         {logs.length ? logs.join("\n") : "—"}
                     </div>

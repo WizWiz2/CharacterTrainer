@@ -16,16 +16,22 @@ def _default_kohya_root() -> Path:
     if override:
         expanded = os.path.expandvars(override)
         return Path(expanded).expanduser().resolve()
+    
+    # Check common locations, prioritizing local installation
+    local_kohya = BACKEND_ROOT / "kohya_ss"
     common_paths = [
+        local_kohya,  # Local installation (auto-downloaded)
         Path("/opt/kohya_ss"),
         Path("/workspace/sd-scripts"),
         Path("/sd-scripts"),
         Path.home() / "kohya_ss",
     ]
     for candidate in common_paths:
-        if candidate.exists():
+        if (candidate / "train_network.py").exists():
             return candidate.resolve()
-    return (Path.home() / "kohya_ss").resolve()
+    
+    # Default to local path (will be auto-downloaded if missing)
+    return local_kohya.resolve()
 
 API_TITLE = "Character LoRA One-Click API"
 API_VERSION = "0.2.0"
@@ -61,11 +67,11 @@ ARTIFACT_SUFFIX = ".safetensors"
 
 DEFAULT_TRIGGER_TOKEN = "svtchar"
 
-DEFAULT_BASE_MODEL_USE = "ds8"
+DEFAULT_BASE_MODEL_USE = "dreamshaper_8"
 DEFAULT_MODELS_DIR = _default_models_dir()
 
 DEFAULT_BASE_MODEL_PATHS = {
-    "ds8": DEFAULT_MODELS_DIR / "dreamshaper_8.safetensors",
+    "dreamshaper_8": DEFAULT_MODELS_DIR / "dreamshaper_8.safetensors",
     "sd15": DEFAULT_MODELS_DIR / "v1-5-pruned-emaonly.safetensors",
 }
 

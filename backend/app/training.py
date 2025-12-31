@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import codecs
 import shutil
+import sys
+import os
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -21,14 +24,56 @@ from .dataset import prepare_dataset
 from .job_manager import JobState, JobRecord, job_manager
 
 
-async def _stream_process_output(process: asyncio.subprocess.Process, job_id: str) -> None:
+import time
+
+async def _stream_process_output(process: asyncio.subprocess.Process, job_id: str, log_file: Path) -> None:
     if not process.stdout:
         return
-    while True:
-        line = await process.stdout.readline()
-        if not line:
-            break
-        job_manager.append_log(job_id, line.decode("utf-8", errors="ignore").rstrip())
+    
+    decoder = codecs.getincrementaldecoder("utf-8")(errors="ignore")
+    buffer = ""
+    last_progress_time = 0.0
+    
+    with open(log_file, "a", encoding="utf-8") as f:
+        while True:
+            chunk = await process.stdout.read(4096)
+            if not chunk:
+                break
+            
+            # Decode chunk
+            text = decoder.decode(chunk, final=False)
+            
+            # Normalize \r to \n so we treat progress bar updates as new lines
+            text = text.replace('\r', '\n')
+            
+            buffer += text
+            
+            while '\n' in buffer:
+                line, buffer = buffer.split('\n', 1)
+                stripped_line = line.strip()
+                if not stripped_line:
+                    continue
+
+                # Throttling logic for progress bars to prevent UI/Network flood
+                # tqdm lines usually look like "steps:  12%|███       | 12/100 [00:05<00:30,  2.88it/s]"
+                is_progress = "it/s]" in stripped_line or "%|" in stripped_line or stripped_line.startswith("steps:")
+                
+                if is_progress:
+                    now = time.time()
+                    if now - last_progress_time < 0.5: # Limit to 2 updates per second
+                        continue
+                    last_progress_time = now
+
+                job_manager.append_log(job_id, line)
+                f.write(line + "\n")
+                f.flush()
+        
+        # Flush remaining buffer
+        remaining = decoder.decode(b"", final=True)
+        buffer += remaining.replace('\r', '\n')
+        if buffer.strip():
+             job_manager.append_log(job_id, buffer)
+             f.write(buffer + "\n")
 
 
 def _bool_param(value: str | bool, default: bool) -> bool:
@@ -86,13 +131,14 @@ def _build_training_command(
     command: List[str] = [
         config.kohya.accelerate_bin,
         "launch",
+        "--mixed_precision",
+        config.train.mixed_precision,
+        "--num_processes=1", 
         str(config.kohya.script_path),
         "--pretrained_model_name_or_path",
         str(base_path),
         "--train_data_dir",
         str(images_dir),
-        "--caption_metadata_dir",
-        str(captions_dir),
         "--resolution",
         f"{resolution},{resolution}",
         "--network_module",
@@ -113,7 +159,7 @@ def _build_training_command(
         str(config.train.train_batch_size),
         "--noise_offset",
         str(config.train.noise_offset),
-        "--caption_dropout",
+        "--caption_dropout_rate",
         str(config.train.caption_dropout),
         "--min_snr_gamma",
         str(config.train.min_snr_gamma),
@@ -122,7 +168,7 @@ def _build_training_command(
     ]
 
     if unet_only:
-        command.append("--train_unet_only")
+        command.append("--network_train_unet_only")
     elif config.train.lr_text > 0:
         command.extend(["--text_encoder_lr", str(config.train.lr_text)])
 
@@ -132,7 +178,9 @@ def _build_training_command(
 async def run_pipeline(job: JobRecord, raw_dir: Path, config: AppConfig) -> None:
     try:
         job_manager.set_state(job.job_id, JobState.PREPPING)
-        dataset_dir = _prepare_dataset(job, raw_dir, config)
+        
+        loop = asyncio.get_running_loop()
+        dataset_dir = await loop.run_in_executor(None, _prepare_dataset, job, raw_dir, config)
 
         output_subdir = config.kohya.output_subdir or CHECKPOINTS_SUBDIR_NAME
         output_dir = raw_dir.parent / output_subdir
@@ -142,18 +190,44 @@ async def run_pipeline(job: JobRecord, raw_dir: Path, config: AppConfig) -> None
         job_manager.append_log(job.job_id, LOG_PIPELINE_TRAINING_START)
 
         command, artifact_stem, expected_artifact = _build_training_command(job, dataset_dir, output_dir, config)
+        
+        logs_dir = raw_dir.parents[3] / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        log_file = logs_dir / f"{job.job_id}.log"
+
+        job_manager.append_log(job.job_id, f"Debug: sys.executable: {sys.executable}")
+        job_manager.append_log(job.job_id, f"Debug: current PATH: {os.environ.get('PATH')}")
+        job_manager.append_log(job.job_id, f"Running command: {' '.join(command)}")
 
         workspace = config.kohya.workspace if config.kohya.workspace else config.kohya.script_path.parent
+        job_manager.append_log(job.job_id, f"Debug: acc_bin exists: {os.path.exists(config.kohya.accelerate_bin)}")
+        job_manager.append_log(job.job_id, f"Debug: script exists: {config.kohya.script_path.exists()}")
+        job_manager.append_log(job.job_id, f"Debug: workspace exists: {workspace.exists()}")
+        job_manager.append_log(job.job_id, f"Debug: workspace path: {workspace}")
+        
+        env = os.environ.copy()
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
+        acc_path = Path(config.kohya.accelerate_bin)
+        if acc_path.is_absolute():
+            env["PATH"] = str(acc_path.parent) + os.pathsep + env.get("PATH", "")
+
+        # Use create_subprocess_exec to avoid shell encoding issues
+        # command list is already prepared in 'command' variable
+        
+        # Ensure workspace exists
         if not workspace.exists():
             raise FileNotFoundError(f"Рабочая директория kohya_ss не найдена: {workspace}")
 
         process = await asyncio.create_subprocess_exec(
             *command,
             cwd=str(workspace),
+            env=env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
+            limit=1024 * 1024 * 10,  # 10MB limit to handle long progress bars
         )
-        await _stream_process_output(process, job.job_id)
+        await _stream_process_output(process, job.job_id, log_file)
         return_code = await process.wait()
         if return_code != 0:
             raise RuntimeError(f"kohya_ss завершился с кодом {return_code}")
@@ -176,7 +250,7 @@ async def run_pipeline(job: JobRecord, raw_dir: Path, config: AppConfig) -> None
         job_manager.append_log(job.job_id, LOG_PIPELINE_DONE)
         job_manager.set_state(job.job_id, JobState.DONE)
     except Exception as exc:  # pragma: no cover - defensive
-        job_manager.append_log(job.job_id, LOG_PIPELINE_ERROR.format(error=exc))
+        job_manager.append_log(job.job_id, LOG_PIPELINE_ERROR.format(error=repr(exc)))
         job_manager.set_error(job.job_id, str(exc))
 
 

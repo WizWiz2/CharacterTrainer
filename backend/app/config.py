@@ -35,11 +35,16 @@ from .constants import (
 )
 
 
+import re
+
 def _normalize_path(value: Any) -> Path:
     if isinstance(value, Path):
         path = value
     else:
-        expanded = os.path.expandvars(str(value))
+        val_str = str(value)
+        # Convert ${VAR} to %VAR% for os.path.expandvars on Windows
+        val_str = re.sub(r'\$\{([^}]+)\}', r'%\1%', val_str)
+        expanded = os.path.expandvars(val_str)
         path = Path(expanded)
     return path.expanduser().resolve()
 
@@ -86,12 +91,12 @@ class KohyaConfig:
 @dataclass
 class AppConfig:
     ed_lora_dir: Path = DEFAULT_ED_LORA_DIR
-    base_model: BaseModelPaths = BaseModelPaths()
+    base_model: BaseModelPaths = field(default_factory=BaseModelPaths)
     trigger_token: str = DEFAULT_TRIGGER_TOKEN
     local_docker: bool = DEFAULT_LOCAL_DOCKER
-    ssh: SSHConfig = SSHConfig()
-    train: TrainConfig = TrainConfig()
-    kohya: KohyaConfig = KohyaConfig()
+    ssh: SSHConfig = field(default_factory=SSHConfig)
+    train: TrainConfig = field(default_factory=TrainConfig)
+    kohya: KohyaConfig = field(default_factory=KohyaConfig)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "AppConfig":
@@ -110,7 +115,7 @@ class AppConfig:
         )
         kohya_cfg_raw = data.get("kohya", {})
         kohya_cfg = KohyaConfig(
-            accelerate_bin=kohya_cfg_raw.get("accelerate_bin", KohyaConfig().accelerate_bin),
+            accelerate_bin=str(_normalize_path(kohya_cfg_raw.get("accelerate_bin", KohyaConfig().accelerate_bin))),
             script_path=_normalize_path(kohya_cfg_raw.get("script_path", KohyaConfig().script_path)),
             workspace=_normalize_path(kohya_cfg_raw.get("workspace", KohyaConfig().workspace)),
             output_subdir=kohya_cfg_raw.get("output_subdir", KohyaConfig().output_subdir),

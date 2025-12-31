@@ -4,6 +4,9 @@ from pathlib import Path
 from typing import Iterable, Tuple
 
 from PIL import Image
+from pillow_heif import register_heif_opener
+
+register_heif_opener()
 
 from .constants import (
     DATASET_CAPTIONS_SUBDIR,
@@ -28,15 +31,15 @@ def prepare_dataset(
     name: str,
 ) -> None:
     images_dir = dataset_dir / DATASET_IMAGES_SUBDIR
-    captions_dir = dataset_dir / DATASET_CAPTIONS_SUBDIR
-    images_dir.mkdir(parents=True, exist_ok=True)
-    captions_dir.mkdir(parents=True, exist_ok=True)
+    subset_name = f"40_{trigger}"
+    subset_dir = images_dir / subset_name
+    subset_dir.mkdir(parents=True, exist_ok=True)
 
     job_manager.append_log(job_id, LOG_PIPELINE_DATASET)
 
     for idx, (path, original_name) in enumerate(raw_files):
         dest_name = _safe_filename(idx, original_name)
-        dest_path = images_dir / dest_name
+        dest_path = subset_dir / dest_name
         image = Image.open(path)
         image = image.convert("RGB")
         w, h = image.size
@@ -45,7 +48,7 @@ def prepare_dataset(
         square.paste(image, ((side - w) // 2, (side - h) // 2))
         resized = square.resize((resolution, resolution), Image.LANCZOS)
         resized.save(dest_path, format="PNG")
-        caption_path = captions_dir / f"{dest_path.stem}.txt"
+        caption_path = subset_dir / f"{dest_path.stem}.txt"
         caption_path.write_text(f"{trigger} {name}", encoding="utf-8")
 
     job_manager.append_log(job_id, LOG_PIPELINE_DATASET_DONE)
