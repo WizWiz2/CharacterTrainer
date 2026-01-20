@@ -39,4 +39,4 @@ echo App launched!
 echo Backend logs: in the Backend window
 echo Frontend logs: in the Frontend window
 echo ==========================================
-pause
+

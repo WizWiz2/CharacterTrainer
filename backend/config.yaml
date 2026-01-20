@@ -1,7 +1,7 @@
 ed_lora_dir: "artifacts/ed_lora"
 base_model:
-  use: "ds8"
-  ds8: "/srv/models/dreamshaper_8.safetensors"
+  use: "dreamshaper_8"
+  dreamshaper_8: "C:/EasyDiffusion/models/stable-diffusion/dreamshaper_8.safetensors"
   sd15: "/srv/models/v1-5-pruned-emaonly.safetensors"
 trigger_token: "svtchar"
 local_docker: true
@@ -12,8 +12,8 @@ train:
   unet_only: true
   save_every: 500
 kohya:
-  accelerate_bin: "accelerate"
-  script_path: "${KOHYA_ROOT}/train_network.py"
-  workspace: "${KOHYA_ROOT}"
+  accelerate_bin: "C:\\EasyDiffusion\\installer_files\\env\\Scripts\\accelerate.exe"
+  script_path: "C:/work/LoRA-Setup-Kit/kohya_ss/train_network.py"
+  workspace: "C:/work/LoRA-Setup-Kit/kohya_ss"
   output_subdir: "output"
   network_module: "lycoris.kohya"
